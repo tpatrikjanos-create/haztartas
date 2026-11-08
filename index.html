@@ -779,11 +779,11 @@ function viewStats(){
 }
 
 /* ---------- Új vásárlás ---------- */
-function fileToB64(file,max=1600){
+function fileToB64(file,max=2600){
   return new Promise((res,rej)=>{
     const img=new Image(),url=URL.createObjectURL(file);
     img.onload=()=>{const r=Math.min(1,max/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=Math.round(img.width*r);c.height=Math.round(img.height*r);
-      c.getContext("2d").drawImage(img,0,0,c.width,c.height);res({b64:c.toDataURL("image/jpeg",.85).split(",")[1],url})};
+      c.getContext("2d").drawImage(img,0,0,c.width,c.height);res({b64:c.toDataURL("image/jpeg",.9).split(",")[1],url})};
     img.onerror=()=>rej(new Error("A kép nem olvasható."));img.src=url;
   });
 }
@@ -796,15 +796,16 @@ function buildPrompt(){
 Szabályok:
 - A blokkok gyakran rövidítenek vagy levágják a terméknevet. A "name" a feloldott, értelmes magyar terméknév (pl. "TEJ 2,8% 1L" → "Tej 2,8% 1 l"). A "TS" Tesco saját márkát jelent. Ha a feloldás nem biztos, vagyis a nevet a rövidítésből találgatod, a "guess" legyen true, különben false.
 - Egyes blokkokon (pl. Tesco) a mennyiség és egységár sor ("2,000 db * 941,00 Ft /db") a termék neve ELŐTT áll, és a közvetlenül utána következő névsorhoz tartozik; a névsor végén a sor végösszege áll. A mennyiség lehet tizedes (kg-os áru).
+- Lidl-blokkon a termék neve áll elöl, a következő sorban pedig a "6 DB * 99 Ft/DB" mennyiség-egységár sor és a sor végösszege (a végösszeg a jobb szélen). A "Visszav.díj" (palackdíj) sorokat vedd fel külön tételként ("Visszaváltási díj", category: egyéb), hogy a végösszeg egyezzen. A fotó lehet ferde, árnyékos vagy a blokk csak a kép egy kis részét foglalja el: a blokk szövegét akkor is olvasd ki.
 - Az unitPrice forintban egy darab (egység) ára. Ha csak a sor végösszege áll, számold ki az egységárat.
 - Kedvezmény-sort (negatív összeg, pl. "CC …" Clubcard-kedvezmény, "KEDVEZMÉNY", "AKCIÓ") NE vegyél fel külön tételként. Vond le a hozzá tartozó tétel sorösszegéből, és az egységárat a kedvezményes sorösszeg / mennyiség alapján add meg. Így a tételek összege egyezzen a blokk végösszegével.
 - A "totalAmount" a blokk végösszege ("ÖSSZESEN"), forintban. A részösszeget, a fizetési módot és az egyéb adatokat ne vedd fel tételként.
 - A dátum lehet "2026.11.06." vagy "26/11/06" alakú is; purchasedAt-ben YYYY-MM-DD legyen. Ha nem olvasható, legyen üres.${al?`\n- Korábban a felhasználó ezeket javította, ugyanilyen blokk-szöveghez használd ugyanezt: ${al}.`:""}${known?`\n- Ismert termékek a háztartásban: ${known}. Ha egy sor nagy valószínűséggel ezek egyikére utal, használd pontosan ezt a nevet.`:""}
 A category pontosan ezek egyike: ${CATS.map(c=>c[0]).join(", ")}.`;
 }
-async function scanReceipt(b64){
+async function scanReceipt(b64,model){
   const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":cfg.apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-    body:JSON.stringify({model:cfg.model||"claude-haiku-5-5",max_tokens:2500,messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}},{type:"text",text:buildPrompt()}]}]})});
+    body:JSON.stringify({model:model||cfg.model||"claude-haiku-5-5",max_tokens:4000,messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}},{type:"text",text:buildPrompt()}]}]})});
   const j=await r.json().catch(()=>({}));
   if(!r.ok)throw new Error((j.error&&j.error.message)||"Hiba a blokk olvasásakor ("+r.status+")");
   const txt=((j.content||[]).find(c=>c.type==="text")||{}).text||"";
@@ -824,7 +825,7 @@ function openPurchase(){
     cam.setAttribute("capture","environment");
     const onFile=async f=>{
       if(!f)return;st="scan";err="";draw();
-      try{const{b64,url}=await fileToB64(f);preview=url;draw();draft=await scanReceipt(b64);if(!draft.items.length)draft.items.push({name:"",quantity:1,unitPrice:0,category:"egyéb"});st="review"}
+      try{const{b64,url}=await fileToB64(f);preview=url;draw();try{draft=await scanReceipt(b64)}catch(e1){logEvent("scan_retry",{msg:String(e1.message).slice(0,120)});draft=await scanReceipt(b64,"claude-sonnet-5-5")}if(!draft.items.length)draft.items.push({name:"",quantity:1,unitPrice:0,category:"egyéb"});st="review"}
       catch(e){st="pick";err=e.message||"Ismeretlen hiba.";logEvent("scan_error",{msg:String(err).slice(0,160)})}
       draw();
     };
