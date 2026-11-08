@@ -148,6 +148,8 @@ body.picking .nav,body.picking .fab{display:none}
 .rrow{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:16px;padding:10px;margin-bottom:8px;display:grid;gap:8px}
 .rrow .l2{display:grid;grid-template-columns:62px 1fr 1.3fr 36px;gap:8px;align-items:center}
 .rrow input,.rrow select{padding:10px}
+.raw{font-size:12px;color:var(--mu);padding:0 4px;overflow-wrap:anywhere}.raw.guess{color:var(--low)}
+.rrow.guess{border-color:rgba(251,191,36,.55)}
 .total{font-size:26px;font-weight:800;margin:6px 0 12px;font-variant-numeric:tabular-nums}
 .toast{position:fixed;left:50%;bottom:calc(150px + var(--sb));transform:translate(-50%,0);background:#1c2447;border:1px solid var(--line);color:var(--tx);padding:11px 16px;border-radius:16px;z-index:60;box-shadow:0 14px 40px -12px #000;max-width:calc(100% - 32px);text-align:center;font-size:15px;animation:toast .45s var(--ease) both}
 .toast.out{opacity:0;transform:translate(-50%,10px);transition:all .3s}
@@ -732,12 +734,18 @@ function fileToB64(file,max=1600){
     img.onerror=()=>rej(new Error("A kép nem olvasható."));img.src=url;
   });
 }
-const PROMPT=`Ez egy magyarországi vásárlási blokk (Lidl, Aldi, Spar vagy hasonló). Olvasd ki a tételeket. Válaszolj KIZÁRÓLAG egyetlen JSON objektummal, semmi mással:
-{"store":"bolt neve","purchasedAt":"YYYY-MM-DD","items":[{"name":"tétel neve olvashatóan","quantity":1,"unitPrice":0,"category":"..."}]}
+const aliasKey=raw=>keyOf(raw).slice(0,100);
+function buildPrompt(){
+  const al=Object.entries(T.alias||{}).slice(-60).map(([k,v])=>`"${v.raw||k}" → "${v.name}"`).join("; ");
+  const known=[...new Set(inv().map(i=>i.name))].slice(0,80).join(", ");
+  return `Ez egy magyarországi vásárlási blokk (Lidl, Aldi, Spar vagy hasonló). Olvasd ki a tételeket. Válaszolj KIZÁRÓLAG egyetlen JSON objektummal, semmi mással:
+{"store":"bolt neve","purchasedAt":"YYYY-MM-DD","items":[{"raw":"a sor szövege a blokkon, pontosan","name":"kibontott, olvasható terméknév","guess":false,"quantity":1,"unitPrice":0,"category":"..."}]}
+A blokkok gyakran rövidítenek vagy levágják a terméknevet. A "name" mezőbe a feloldott, értelmes magyar terméknevet írd (pl. "CSIRKEMELL FIL. 1KG" → "Csirkemell filé", "TEJ 2,8% 1L" → "Tej 2,8% 1 l"), a márkát csak akkor tartsd meg, ha egyértelmű. Ha a feloldás nem biztos, vagyis a nevet a rövidítésből találgatod, a "guess" legyen true; ha biztos, false.${al?`\nKorábban a felhasználó ezeket javította, ugyanilyen blokk-szöveghez használd ugyanezt: ${al}.`:""}${known?`\nIsmert termékek a háztartásban: ${known}. Ha egy sor nagy valószínűséggel ezek egyikére utal, használd pontosan ezt a nevet.`:""}
 Az unitPrice forintban egy darab (egység) ára; ha a blokkon csak a sor végösszege áll, számold ki az egységárat. A category pontosan ezek egyike: ${CATS.map(c=>c[0]).join(", ")}. Ha a dátum nem olvasható, a purchasedAt legyen üres. Kedvezmény-sorokat és a végösszeget ne vedd fel tételként.`;
+}
 async function scanReceipt(b64){
   const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":cfg.apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-    body:JSON.stringify({model:cfg.model||"claude-haiku-5-5",max_tokens:2500,messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}},{type:"text",text:PROMPT}]}]})});
+    body:JSON.stringify({model:cfg.model||"claude-haiku-5-5",max_tokens:2500,messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}},{type:"text",text:buildPrompt()}]}]})});
   const j=await r.json().catch(()=>({}));
   if(!r.ok)throw new Error((j.error&&j.error.message)||"Hiba a blokk olvasásakor ("+r.status+")");
   const txt=((j.content||[]).find(c=>c.type==="text")||{}).text||"";
@@ -745,7 +753,10 @@ async function scanReceipt(b64){
   let d;try{d=JSON.parse(m[0])}catch(e){throw new Error("A válasz hibás formátumú. Próbáld újra.")}
   if(!d||!Array.isArray(d.items))throw new Error("Nem találtam tételeket a blokkon.");
   return{store:String(d.store||""),date:/^\d{4}-\d{2}-\d{2}$/.test(d.purchasedAt)?d.purchasedAt:fmt(new Date()),
-    items:d.items.map(i=>({name:String(i.name||"").trim(),quantity:Number(i.quantity)||1,unitPrice:Number(i.unitPrice)||0,category:CATS.some(c=>c[0]===i.category)?i.category:"egyéb"})).filter(i=>i.name)};
+    items:d.items.map(i=>{
+      const raw=String(i.raw||"").trim(),a=raw&&(T.alias||{})[aliasKey(raw)];
+      return{raw,name:a?a.name:String(i.name||raw).trim(),guess:a?false:!!i.guess,quantity:Number(i.quantity)||1,unitPrice:Number(i.unitPrice)||0,
+        category:a&&a.category?a.category:(CATS.some(c=>c[0]===i.category)?i.category:"egyéb")}}).filter(i=>i.name)};
 }
 function openPurchase(){
   sheet((body,close)=>{
@@ -779,24 +790,27 @@ function openPurchase(){
         date=h("input",{type:"date",value:draft.date,oninput:e=>draft.date=e.target.value}),rows=h("div"),total=h("div",{class:"total"}),e2=h("div",{class:"err"});
       const upd=()=>{total.textContent=huf(draft.items.reduce((s,i)=>s+(+i.quantity||0)*(+i.unitPrice||0),0))};
       const drawRows=()=>{
-        rows.replaceChildren(...draft.items.map((it,idx)=>h("div",{class:"rrow"},
-          h("input",{value:it.name,placeholder:"Tétel neve",oninput:e=>it.name=e.target.value}),
+        rows.replaceChildren(...draft.items.map((it,idx)=>{const rawEl=it.raw?h("div",{class:"raw"+(it.guess?" guess":"")},(it.guess?"❓ Találgatás, ellenőrizd · ":"")+"blokkon: "+it.raw):null;
+          return h("div",{class:"rrow"+(it.guess?" guess":"")},
+          h("input",{value:it.name,placeholder:"Tétel neve",oninput:e=>{it.name=e.target.value;if(it.guess){it.guess=false;if(rawEl)rawEl.className="raw";rawEl&&(rawEl.textContent="blokkon: "+it.raw)}}}),rawEl,
           h("div",{class:"l2"},
             h("input",{type:"number",inputMode:"decimal",min:"0",step:"any",value:it.quantity,"aria-label":"Darab",oninput:e=>{it.quantity=e.target.value;upd()}}),
             h("input",{type:"number",inputMode:"decimal",min:"0",step:"any",value:it.unitPrice,"aria-label":"Egységár",placeholder:"Ft/db",oninput:e=>{it.unitPrice=e.target.value;upd()}}),
             h("select",{"aria-label":"Kategória",onchange:e=>it.category=e.target.value},CATS.map(c=>h("option",{value:c[0],selected:c[0]===it.category},c[1]+" "+c[0]))),
-            h("button",{class:"x","aria-label":"Tétel törlése",onclick:()=>{draft.items.splice(idx,1);drawRows();upd()}},ico(I.x,16)))))) ;
+            h("button",{class:"x","aria-label":"Tétel törlése",onclick:()=>{draft.items.splice(idx,1);drawRows();upd()}},ico(I.x,16))))})) ;
       };
       drawRows();upd();
       body.append(h("h2",{class:"t"},"Ellenőrzés mentés előtt"),h("div",{class:"pair",style:"margin-bottom:10px"},store,date),rows,
         h("button",{class:"btn ghost s",style:"margin-bottom:10px",onclick:()=>{draft.items.push({name:"",quantity:1,unitPrice:0,category:"egyéb"});drawRows()}},"+ Tétel"),total,e2,
         h("div",{class:"pair"},h("button",{class:"btn ghost",onclick:()=>{st="pick";draft=null;draw()}},"Vissza"),
           h("button",{class:"btn",onclick:()=>{
-            const items=draft.items.map(i=>({name:String(i.name).trim(),quantity:+i.quantity||1,unitPrice:+i.unitPrice||0,category:i.category})).filter(i=>i.name);
+            const items=draft.items.map(i=>({name:String(i.name).trim(),raw:i.raw||"",quantity:+i.quantity||1,unitPrice:+i.unitPrice||0,category:i.category})).filter(i=>i.name);
             if(!items.length){e2.textContent="Legalább egy tételt adj meg.";return}
             const sum=items.reduce((s,i)=>s+i.quantity*i.unitPrice,0),u={};
             u["tx/"+uid()]={profile:me,store:String(draft.store||"").trim()||"Ismeretlen bolt",date:draft.date||fmt(new Date()),items,total:sum,created:Date.now()};
             const names=new Set(items.map(i=>norm(i.name)));
+            items.forEach(i=>{if(i.raw&&norm(i.raw)!==norm(i.name)&&aliasKey(i.raw))u["alias/"+aliasKey(i.raw)]={raw:i.raw,name:i.name,category:i.category}}); // tanul: blokk-szöveg → javított név
+            items.forEach(i=>{if(!i.raw)delete i.raw});
             items.forEach(i=>Object.assign(u,setInv(i.name,"ok")));
             shop().forEach(s=>{if(names.has(norm(s.name)))u["shop/"+s.id]=null});
             multi(u);close();toast("Mentve · "+huf(sum),"✅");confetti(18);buzz()}},"Mentés")));
