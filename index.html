@@ -545,7 +545,7 @@ function openTx(id){
     b.append(h("h2",{class:"t wrap"},t.store||"Ismeretlen bolt"),h("p",{class:"mu sm",style:"margin:-8px 0 12px"},dayLabel(t.date)+" · "+(PROFILES[t.profile]?PROFILES[t.profile].name:"")+" "+(PROFILES[t.profile]?PROFILES[t.profile].pet:"")));
     t.items.forEach(i=>b.append(h("div",{class:"row"},h("div",{class:"tile",style:"width:38px;height:38px;font-size:19px"},catInfo(i.category)[1]),
       h("div",{class:"grow"},h("div",{class:"wrap"},i.name),h("div",{class:"mu sm"},i.quantity+" × "+huf(i.unitPrice))),h("b",{style:"flex:none"},huf(i.quantity*i.unitPrice)))));
-    b.append(h("div",{class:"total"},huf(t.total)),h("button",{class:"btn danger block",onclick:()=>{if(confirm("Törlöd ezt a vásárlást? A leltár nem változik.")){write("tx/"+id,null);close();toast("Törölve","🗑️")}}},"Vásárlás törlése"));
+    b.append(h("div",{class:"total"},huf(t.total)),(+t.deposit>0?h("p",{class:"mu sm",style:"margin:-6px 0 12px"},"♻️ Ebből betétdíj / visszaváltási díj: "+huf(t.deposit)):null),h("button",{class:"btn danger block",onclick:()=>{if(confirm("Törlöd ezt a vásárlást? A leltár nem változik.")){write("tx/"+id,null);close();toast("Törölve","🗑️")}}},"Vásárlás törlése"));
   });
 }
 
@@ -797,13 +797,13 @@ Módszer:
 1. Nézd meg a szerkezetet: hol áll a terméknév; a "2 db * 619 Ft" jellegű mennyiség-egységár sor a név előtt vagy után áll-e; melyik oszlop a sorösszeg (általában a jobb szél). Ezt a blokk egészén következetesen alkalmazd. A fotó lehet ferde, görbült, árnyékos: az érték vizuálisan egy sorral följebb vagy lejjebb látszhat a névhez képest, ilyenkor a sorrend dönt (az n-edik név az n-edik értékhez tartozik).
 2. A "valueColumn" mezőbe először írd ki a sorösszeg-oszlop összes számát fentről lefelé (az ÖSSZESEN/végösszeg nélkül; két egymás utáni azonos szám két külön tétel, egyiket se hagyd ki, és az utolsó sort se; az ezreseket szóköz választhatja el: "1 238" = 1238; a negatív kedvezmény is külön szám).
 3. Az "items" tömb elemei ezekhez igazodjanak sorrendben: egy elem = egy sorösszeg. A mennyiség-sor nem külön tétel, a hozzá tartozó érték a hozzá tartozó terméké. A "lineTotal" a tétel sorösszege forintban, a "quantity" a darabszám (tizedes is lehet, kg-nál).
-4. Kedvezmény-sort (negatív összeg) vagy betétdíj-sort ("Visszav.díj", palackdíj) NE vegyél fel külön tételként: vond le / add hozzá a hozzá tartozó termék sorösszegéhez, és betétdíjnál a név végére írd: "(+50 Ft betétdíj)".
+4. Kedvezmény-sort (negatív összeg) NE vegyél fel külön tételként: vond le a hozzá tartozó termék sorösszegéből. A betétdíj- / visszaváltási díj-sorokat ("Visszav.díj", "betétdíj", palackdíj, "BF") is NE vegyél fel külön tételként: add hozzá a közvetlenül mellette álló termék sorösszegéhez, a termék "deposit" mezőjébe írd a hozzá tartozó betétdíj összegét forintban (pl. 6 db palack × 50 Ft → deposit 300), a név végére pedig: "(+50 Ft betétdíj)". A "depositTotal" a blokk összes betétdíjának összege forintban (0, ha nincs).
 5. A "totalAmount" a blokk végösszege (ÖSSZESEN/FIZETENDŐ). A részösszeg, fizetési mód, kártyaadat, "tételek száma" és lábléc nem tétel. A lineTotal értékek összege legyen a végösszeg; ellenőrizd, és ha nem egyezik, nézd át újra a képet.
 6. A dátum a blokk tetején VAGY alján is lehet (pl. "2026.11.03.", "26/10/26 19:35"); purchasedAt YYYY-MM-DD, az évszám 2026 körüli. Ha nem olvasható, legyen üres.
 7. A blokk rövidíti a neveket. A "name" a feloldott, értelmes magyar terméknév (pl. "TEJ 2,8% 1L" → "Tej 2,8% 1 l"; "TS" = Tesco saját márka). Ha a feloldás nem biztos (találgatod), a "guess" legyen true. A "raw" a sor szövege a blokkon, pontosan.${al?`\n8. Korábban a felhasználó ezeket javította, ugyanilyen blokk-szöveghez használd ugyanezt: ${al}.`:""}${known?`\n9. Ismert termékek a háztartásban: ${known}. Ha egy sor nagy valószínűséggel ezek egyikére utal, használd pontosan ezt a nevet.`:""}
 A category pontosan ezek egyike: ${CATS.map(c=>c[0]).join(", ")}.`;
 }
-const RSCHEMA={type:"object",properties:{valueColumn:{type:"array",items:{type:"number"}},store:{type:"string"},purchasedAt:{type:"string"},totalAmount:{type:"number"},items:{type:"array",items:{type:"object",properties:{raw:{type:"string"},name:{type:"string"},guess:{type:"boolean"},quantity:{type:"number"},lineTotal:{type:"number"},category:{type:"string"}},required:["name","quantity","lineTotal","category"]}}},required:["items"]};
+const RSCHEMA={type:"object",properties:{valueColumn:{type:"array",items:{type:"number"}},depositTotal:{type:"number"},store:{type:"string"},purchasedAt:{type:"string"},totalAmount:{type:"number"},items:{type:"array",items:{type:"object",properties:{raw:{type:"string"},name:{type:"string"},guess:{type:"boolean"},quantity:{type:"number"},lineTotal:{type:"number"},deposit:{type:"number"},category:{type:"string"}},required:["name","quantity","lineTotal","category"]}}},required:["items"]};
 async function apiCall(messages,model){
   const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":cfg.apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
     body:JSON.stringify({model:model||cfg.model||"claude-haiku-5-5",max_tokens:4000,tools:[{name:"rogzit",description:"A blokk kiolvasott adatai",input_schema:RSCHEMA}],tool_choice:{type:"tool",name:"rogzit"},messages})});
@@ -820,10 +820,10 @@ function parseReceipt(j){
   if(!d||!Array.isArray(d.items))throw new Error("Nem találtam tételeket a blokkon.");
   if(Array.isArray(d.valueColumn)){const vc=d.valueColumn.map(Number).filter(x=>x);
     if(vc.length===d.items.length&&Math.abs(vc.reduce((a,b)=>a+b,0)-Number(d.totalAmount))<=1)d.items.forEach((it,i)=>{it.lineTotal=vc[i]})}
-  return{receiptTotal:Number(d.totalAmount)||0,store:String(d.store||""),dateFound:/^\d{4}-\d{2}-\d{2}$/.test(d.purchasedAt),date:/^\d{4}-\d{2}-\d{2}$/.test(d.purchasedAt)?d.purchasedAt:fmt(new Date()),
+  return{deposit:Math.round(Number(d.depositTotal)||d.items.reduce((a,i)=>a+(Number(i.deposit)||0),0)),receiptTotal:Number(d.totalAmount)||0,store:String(d.store||""),dateFound:/^\d{4}-\d{2}-\d{2}$/.test(d.purchasedAt),date:/^\d{4}-\d{2}-\d{2}$/.test(d.purchasedAt)?d.purchasedAt:fmt(new Date()),
     items:d.items.map(i=>{
       const raw=String(i.raw||"").trim(),a=raw&&(T.alias||{})[aliasKey(raw)],q=Number(i.quantity)||1;
-      return{raw,name:a?a.name:String(i.name||raw).trim(),guess:a?false:!!i.guess,quantity:q,unitPrice:(Number(i.lineTotal)||0)?Math.round(Number(i.lineTotal)/q*100)/100:(Number(i.unitPrice)||0),
+      return{raw,name:a?a.name:String(i.name||raw).trim(),guess:a?false:!!i.guess,deposit:Math.round(Number(i.deposit)||0),quantity:q,unitPrice:(Number(i.lineTotal)||0)?Math.round(Number(i.lineTotal)/q*100)/100:(Number(i.unitPrice)||0),
         category:a&&a.category?a.category:(CATS.some(c=>c[0]===i.category)?i.category:"egyéb")}}).filter(i=>i.name)};
 }
 const recDiff=r=>r.receiptTotal>0?Math.abs(Math.round(r.items.reduce((a,i)=>a+i.quantity*i.unitPrice,0)-r.receiptTotal)):0;
@@ -887,8 +887,9 @@ function openPurchase(){
     function reviewUI(){
       const store=h("input",{value:draft.store,placeholder:"Bolt (Lidl, Aldi, Spar…)",oninput:e=>draft.store=e.target.value}),
         date=h("input",{type:"date",value:draft.date,oninput:e=>draft.date=e.target.value}),rows=h("div"),e2=h("div",{class:"err"}),totIn=h("input",{type:"number",inputMode:"numeric",min:"0",step:"1",value:draft.receiptTotal||"",placeholder:"Végösszeg",style:"font-size:24px;font-weight:800",oninput:e=>{draft.receiptTotal=+e.target.value||0;upd()}}),total=h("div",{style:"margin:6px 0 10px"},h("div",{class:"sm mu",style:"margin-bottom:4px"},"Végösszeg (Ft) · ez kerül mentésre"),totIn);
-      const chk=h("div",{class:"sm",style:"margin:0 0 10px"});
+      const chk=h("div",{class:"sm",style:"margin:0 0 10px"}),dep=h("div",{class:"sm",style:"margin:0 0 10px"});
       const upd=()=>{const sum=draft.items.reduce((s,i)=>s+(+i.quantity||0)*(+i.unitPrice||0),0);
+        const dsum=draft.items.reduce((a,i)=>a+(+i.deposit||0),0)||draft.deposit||0;dep.textContent=dsum>0?"♻️ Ebből betétdíj / visszaváltási díj összesen: "+huf(dsum)+" (benne van a részárakban és a végösszegben)":"";
         const rt=draft.receiptTotal||0,diff=Math.round(sum-rt);
         if(rt>0&&Math.abs(diff)<=1){chk.className="sm";chk.style.color="var(--ok)";chk.textContent="✓ A részárak összege egyezik a blokk végösszegével ("+huf(rt)+")"}
         else if(rt>0){chk.className="err";chk.style.color="";chk.textContent="⚠ Valami nem stimmel: a blokk végösszege "+huf(rt)+", a tételeké "+huf(sum)+" (különbség: "+huf(Math.abs(diff))+"). Ellenőrizd a részárakat és a darabszámokat! Mentéskor a blokk végösszege ("+huf(rt)+") kerül a kiadásokba."}
@@ -905,17 +906,17 @@ function openPurchase(){
       };
       drawRows();upd();
       body.append(h("h2",{class:"t"},"Ellenőrzés mentés előtt"),h("div",{class:"pair",style:"margin-bottom:10px"},store,date),rows,
-        h("button",{class:"btn ghost s",style:"margin-bottom:10px",onclick:()=>{draft.items.push({name:"",quantity:1,unitPrice:0,category:"egyéb"});drawRows()}},"+ Tétel"),total,chk,e2,
+        h("button",{class:"btn ghost s",style:"margin-bottom:10px",onclick:()=>{draft.items.push({name:"",quantity:1,unitPrice:0,category:"egyéb"});drawRows()}},"+ Tétel"),total,chk,dep,e2,
         h("div",{class:"pair"},h("button",{class:"btn ghost",onclick:()=>{st="pick";draft=null;draw()}},"Vissza"),
           h("button",{class:"btn",onclick:()=>{
-            const items=draft.items.map(i=>({name:String(i.name).trim(),raw:i.raw||"",quantity:+i.quantity||1,unitPrice:+i.unitPrice||0,category:i.category})).filter(i=>i.name);
+            const items=draft.items.map(i=>({name:String(i.name).trim(),raw:i.raw||"",quantity:+i.quantity||1,unitPrice:+i.unitPrice||0,deposit:+i.deposit||0,category:i.category})).filter(i=>i.name);
             if(!items.length){e2.textContent="Legalább egy tételt adj meg.";return}
             const sum=items.reduce((s,i)=>s+i.quantity*i.unitPrice,0),u={};
-            const fin=(+draft.receiptTotal||0)>0?+draft.receiptTotal:sum;
-            u["tx/"+uid()]={profile:me,store:String(draft.store||"").trim()||"Ismeretlen bolt",date:draft.date||fmt(new Date()),items,total:fin,created:Date.now()};
+            const dep0=Math.round(items.reduce((a,i)=>a+i.deposit,0)||draft.deposit||0),fin=(+draft.receiptTotal||0)>0?+draft.receiptTotal:sum;
+            u["tx/"+uid()]={profile:me,store:String(draft.store||"").trim()||"Ismeretlen bolt",date:draft.date||fmt(new Date()),items,total:fin,deposit:dep0,created:Date.now()};
             const names=new Set(items.map(i=>norm(i.name)));
             items.forEach(i=>{if(i.raw&&norm(i.raw)!==norm(i.name)&&aliasKey(i.raw))u["alias/"+aliasKey(i.raw)]={raw:i.raw,name:i.name,category:i.category}}); // tanul: blokk-szöveg → javított név
-            items.forEach(i=>{if(!i.raw)delete i.raw});
+            items.forEach(i=>{if(!i.raw)delete i.raw;if(!i.deposit)delete i.deposit});
             const rt=draft.receiptTotal||0;
             if(rt>0&&Math.abs(sum-rt)>1)logU(u,"total_mismatch",{store:String(draft.store||"").slice(0,40),receipt:rt,sum:Math.round(sum),lines:items.slice(0,12).map(i=>i.raw||i.name)});
             const eg=items.filter(i=>i.category==="egyéb").map(i=>i.name);if(eg.length)logU(u,"egyeb",{names:eg.slice(0,15)});
