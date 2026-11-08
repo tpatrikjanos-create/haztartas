@@ -545,10 +545,41 @@ function openTx(id){
     b.append(h("h2",{class:"t wrap"},t.store||"Ismeretlen bolt"),h("p",{class:"mu sm",style:"margin:-8px 0 12px"},dayLabel(t.date)+" · "+(PROFILES[t.profile]?PROFILES[t.profile].name:"")+" "+(PROFILES[t.profile]?PROFILES[t.profile].pet:"")));
     t.items.forEach(i=>b.append(h("div",{class:"row"},h("div",{class:"tile",style:"width:38px;height:38px;font-size:19px"},catInfo(i.category)[1]),
       h("div",{class:"grow"},h("div",{class:"wrap"},i.name),h("div",{class:"mu sm"},i.quantity+" × "+huf(i.unitPrice))),h("b",{style:"flex:none"},huf(i.quantity*i.unitPrice)))));
-    b.append(h("div",{class:"total"},huf(t.total)),(+t.deposit>0?h("p",{class:"mu sm",style:"margin:-6px 0 12px"},"♻️ Ebből betétdíj / visszaváltási díj: "+huf(t.deposit)):null),h("button",{class:"btn danger block",onclick:()=>{if(confirm("Törlöd ezt a vásárlást? A leltár nem változik.")){write("tx/"+id,null);close();toast("Törölve","🗑️")}}},"Vásárlás törlése"));
+    b.append(h("div",{class:"total"},huf(t.total)),(+t.deposit>0?h("p",{class:"mu sm",style:"margin:-6px 0 12px"},"♻️ Ebből betétdíj / visszaváltási díj: "+huf(t.deposit)):null),h("button",{class:"btn ghost block",style:"margin-bottom:10px",onclick:()=>{close();setTimeout(()=>editTx(id),360)}},"✏️ Szerkesztés"),h("button",{class:"btn danger block",onclick:()=>{if(confirm("Törlöd ezt a vásárlást? A leltár nem változik.")){write("tx/"+id,null);close();toast("Törölve","🗑️")}}},"Vásárlás törlése"));
   });
 }
 
+function editTx(id){
+  const t0=txs().find(x=>x.id===id);if(!t0)return;
+  const d={store:t0.store||"",date:t0.date||fmt(new Date()),total:+t0.total||0,items:t0.items.map(i=>({...i}))};
+  sheet((body,close)=>{
+    const store=h("input",{value:d.store,placeholder:"Bolt",oninput:e=>d.store=e.target.value}),date=h("input",{type:"date",value:d.date,oninput:e=>d.date=e.target.value}),
+      rows=h("div"),chk=h("div",{class:"sm",style:"margin:0 0 10px"}),e2=h("div",{class:"err"}),
+      totIn=h("input",{type:"number",inputMode:"numeric",min:"0",step:"1",value:d.total||"",placeholder:"Végösszeg",style:"font-size:24px;font-weight:800",oninput:e=>{d.total=+e.target.value||0;upd()}});
+    const upd=()=>{const sum=d.items.reduce((s,i)=>s+(+i.quantity||0)*(+i.unitPrice||0),0);
+      if(d.total>0&&Math.abs(Math.round(sum-d.total))>1){chk.className="err";chk.textContent="⚠ A végösszeg "+huf(d.total)+", a tételeké "+huf(sum)+" (különbség: "+huf(Math.abs(Math.round(sum-d.total)))+"). Ellenőrizd a részárakat! Mentéskor a végösszeg kerül a kiadásokba."}
+      else if(d.total>0){chk.className="sm";chk.style.color="var(--ok)";chk.textContent="✓ A részárak összege egyezik a végösszeggel"}
+      else{chk.className="err";chk.textContent="⚠ Nincs végösszeg: a tételek összege ("+huf(sum)+") kerül mentésre."}};
+    const drawRows=()=>{rows.replaceChildren(...d.items.map((it,idx)=>h("div",{class:"rrow"},
+      h("input",{value:it.name||"",placeholder:"Tétel neve",oninput:e=>it.name=e.target.value}),
+      h("div",{class:"l2"},
+        h("input",{type:"number",inputMode:"decimal",min:"0",step:"any",value:it.quantity,"aria-label":"Darab",oninput:e=>{it.quantity=e.target.value;upd()}}),
+        h("input",{type:"number",inputMode:"decimal",min:"0",step:"any",value:it.unitPrice,"aria-label":"Egységár",oninput:e=>{it.unitPrice=e.target.value;upd()}}),
+        h("select",{"aria-label":"Kategória",onchange:e=>it.category=e.target.value},CATS.map(c=>h("option",{value:c[0],selected:c[0]===it.category},c[1]+" "+c[0]))),
+        h("button",{class:"x","aria-label":"Tétel törlése",onclick:()=>{d.items.splice(idx,1);drawRows();upd()}},ico(I.x,16))))))};
+    drawRows();upd();
+    body.append(h("h2",{class:"t"},"Vásárlás szerkesztése"),h("div",{class:"pair",style:"margin-bottom:10px"},store,date),rows,
+      h("button",{class:"btn ghost s",style:"margin-bottom:10px",onclick:()=>{d.items.push({name:"",quantity:1,unitPrice:0,category:"egyéb"});drawRows()}},"+ Tétel"),
+      h("div",{style:"margin:6px 0 10px"},h("div",{class:"sm mu",style:"margin-bottom:4px"},"Végösszeg (Ft) · ez kerül a kiadásokba"),totIn),chk,e2,
+      h("div",{class:"pair"},h("button",{class:"btn ghost",onclick:()=>{close();setTimeout(()=>openTx(id),360)}},"Mégse"),
+        h("button",{class:"btn",onclick:()=>{
+          const items=d.items.map(i=>{const o={name:String(i.name||"").trim(),quantity:+i.quantity||1,unitPrice:+i.unitPrice||0,category:i.category||"egyéb"};if(i.raw)o.raw=i.raw;if(+i.deposit>0)o.deposit=+i.deposit;return o}).filter(i=>i.name);
+          if(!items.length){e2.textContent="Legalább egy tételt adj meg.";return}
+          const sum=items.reduce((s,i)=>s+i.quantity*i.unitPrice,0),{id:_i,...rest}=t0,o={...rest,store:String(d.store||"").trim()||"Ismeretlen bolt",date:d.date||fmt(new Date()),items,total:d.total>0?d.total:sum};
+          const dep=items.reduce((a,i)=>a+(i.deposit||0),0);if(dep>0)o.deposit=dep;else if(!(+t0.deposit>0))delete o.deposit;
+          write("tx/"+id,o);close();toast("Mentve · "+huf(o.total),"✅")}},"Mentés")));
+  });
+}
 /* ---------- Leltár ---------- */
 function viewInv(){
   const box=h("div");
