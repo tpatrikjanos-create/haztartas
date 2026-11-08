@@ -874,12 +874,12 @@ function openPurchase(){
     function reviewUI(){
       const store=h("input",{value:draft.store,placeholder:"Bolt (Lidl, Aldi, Spar…)",oninput:e=>draft.store=e.target.value}),
         date=h("input",{type:"date",value:draft.date,oninput:e=>draft.date=e.target.value}),rows=h("div"),e2=h("div",{class:"err"}),totIn=h("input",{type:"number",inputMode:"numeric",min:"0",step:"1",value:draft.receiptTotal||"",placeholder:"Végösszeg",style:"font-size:24px;font-weight:800",oninput:e=>{draft.receiptTotal=+e.target.value||0;upd()}}),total=h("div",{style:"margin:6px 0 10px"},h("div",{class:"sm mu",style:"margin-bottom:4px"},"Végösszeg (Ft) · ez kerül mentésre"),totIn);
-      const chk=h("div",{class:"sm",style:"margin:-6px 0 10px"});
+      const chk=h("div",{class:"sm",style:"margin:0 0 10px"});
       const upd=()=>{const sum=draft.items.reduce((s,i)=>s+(+i.quantity||0)*(+i.unitPrice||0),0);
-        const rt=draft.receiptTotal||0;
-        if(rt>0){const diff=Math.round(sum-rt);chk.style.color=Math.abs(diff)<=1?"var(--ok)":"var(--low)";
-          chk.textContent=Math.abs(diff)<=1?"✓ Egyezik a blokk végösszegével ("+huf(rt)+")":"⚠ A blokk végösszege "+huf(rt)+", a tételeké "+huf(sum)+" (különbség: "+huf(Math.abs(diff))+"). A végösszeg kerül mentésre, az egyes árak csak tájékoztatók."}
-        else{chk.style.color="";chk.textContent="Végösszeg nélkül a tételek összege kerül mentésre: "+huf(sum)}};
+        const rt=draft.receiptTotal||0,diff=Math.round(sum-rt);
+        if(rt>0&&Math.abs(diff)<=1){chk.className="sm";chk.style.color="var(--ok)";chk.textContent="✓ A részárak összege egyezik a blokk végösszegével ("+huf(rt)+")"}
+        else if(rt>0){chk.className="err";chk.style.color="";chk.textContent="⚠ Valami nem stimmel: a blokk végösszege "+huf(rt)+", a tételeké "+huf(sum)+" (különbség: "+huf(Math.abs(diff))+"). Ellenőrizd a részárakat és a darabszámokat! Mentéskor a blokk végösszege ("+huf(rt)+") kerül a kiadásokba."}
+        else{chk.className="err";chk.style.color="";chk.textContent="⚠ A blokk végösszegét nem sikerült kiolvasni. Írd be fent a blokkon álló végösszeget, különben a tételek összege ("+huf(sum)+") kerül mentésre."}};
       const drawRows=()=>{
         rows.replaceChildren(...draft.items.map((it,idx)=>{const rawEl=it.raw?h("div",{class:"raw"+(it.guess?" guess":"")},(it.guess?"❓ Találgatás, ellenőrizd · ":"")+"blokkon: "+it.raw):null;
           return h("div",{class:"rrow"+(it.guess?" guess":"")},
