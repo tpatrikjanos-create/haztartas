@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0e1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Háztartás</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🏠%3C/text%3E%3C/svg%3E">
+<style>
+:root{--bg:#0a0e1a;--card:rgba(255,255,255,.06);--card2:rgba(255,255,255,.11);--line:rgba(255,255,255,.1);--tx:#eef1ff;--mu:#9aa3c7;
+  --a1:#2dd4bf;--a2:#3b82f6;--ok:#34d399;--low:#fbbf24;--out:#fb7185;--ease:cubic-bezier(.23,1,.32,1);--sb:env(safe-area-inset-bottom,0px);--st:env(safe-area-inset-top,0px)}
+body[data-user=dorina]{--a1:#fb7185;--a2:#f59e0b}
+*{box-sizing:border-box}
+html{-webkit-tap-highlight-color:transparent;overscroll-behavior:none;background:var(--bg)}
+body{margin:0;background:transparent;color:var(--tx);font:16px/1.4 ui-rounded,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100dvh;overflow-x:hidden;-webkit-font-smoothing:antialiased;overscroll-behavior:none}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;touch-action:manipulation;-webkit-user-select:none;user-select:none;padding:0;transition:transform .16s var(--ease),background .2s,opacity .2s}
+button:active{transform:scale(.96)}
+input,select,textarea{font:inherit;font-size:16px;color:var(--tx);background:rgba(255,255,255,.07);border:1px solid var(--line);border-radius:14px;padding:12px 14px;width:100%;min-width:0;outline:none;transition:border-color .2s,background .2s}
+input:focus,select:focus,textarea:focus{border-color:var(--a1);background:rgba(255,255,255,.1)}
+select option{color:#111}
+::placeholder{color:#6d7699}
+h1,h2,h3,p{margin:0}
+.aurora{position:fixed;inset:0;z-index:-1;overflow:hidden;background:var(--bg)}
+.aurora i{position:absolute;width:62vmax;height:62vmax;border-radius:50%;filter:blur(90px);opacity:.34;animation:drift 24s ease-in-out infinite alternate;transition:background 1s}
+.aurora i:nth-child(1){background:var(--a1);top:-28vmax;left:-24vmax}
+.aurora i:nth-child(2){background:var(--a2);bottom:-28vmax;right:-24vmax;animation-delay:-9s}
+.aurora i:nth-child(3){background:#8b5cf6;width:40vmax;height:40vmax;top:35%;left:40%;opacity:.16;animation-delay:-4s}
+@keyframes drift{to{transform:translate3d(9vmax,6vmax,0) scale(1.15)}}
+#view{max-width:560px;margin:0 auto;padding:calc(var(--st) + 14px) 14px calc(130px + var(--sb))}
+.anim>.rise{animation:rise .55s var(--ease) both;animation-delay:calc(var(--i,0)*50ms)}
+@keyframes rise{from{opacity:0;transform:translateY(16px)}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:16px;margin-bottom:12px;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+.card h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mu);margin-bottom:12px;font-weight:600}
+.mu{color:var(--mu)} .sm{font-size:13px}
+.ell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.wrap{overflow-wrap:anywhere}
+/* topbar */
+.top{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.avatar{width:50px;height:50px;border-radius:18px;background:linear-gradient(135deg,var(--a1),var(--a2));display:grid;place-items:center;font-size:28px;flex:none;box-shadow:0 8px 24px -8px var(--a1)}
+.avatar span{display:block;animation:bob 3.2s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-3px) rotate(-6deg)}}
+.ttl{flex:1;min-width:0}.ttl h1{font-size:22px;font-weight:750;letter-spacing:-.02em}.ttl p{color:var(--mu);font-size:13px}
+.iconbtn{width:42px;height:42px;border-radius:14px;background:var(--card);border:1px solid var(--line);display:grid;place-items:center;flex:none}
+.sync{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mu);background:var(--card);border:1px solid var(--line);border-radius:20px;padding:6px 10px;flex:none}
+.sync i{width:8px;height:8px;border-radius:50%;background:#64748b}
+.sync.live i{background:var(--ok);box-shadow:0 0 8px var(--ok);animation:pulse 2s infinite}
+.sync.offline i{background:var(--low)}.sync.connecting i{background:var(--a2);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.35}}
+/* buttons */
+.btn{background:linear-gradient(135deg,var(--a1),var(--a2));color:#04101a;font-weight:700;border-radius:16px;padding:14px 18px;display:inline-flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 10px 30px -12px var(--a1)}
+.btn.ghost{background:var(--card2);color:var(--tx);box-shadow:none;border:1px solid var(--line)}
+.btn.danger{background:rgba(251,113,133,.14);color:var(--out);box-shadow:none}
+.btn.block{width:100%}.btn.s{padding:9px 13px;border-radius:12px;font-size:14px}
+.btn:disabled{opacity:.5}
+@media (hover:hover) and (pointer:fine){.btn:hover{filter:brightness(1.08)}.iconbtn:hover,.row.tap:hover{background:var(--card2)}.nav button:hover{color:var(--tx)}}
+.row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}.row>.grow{flex:1;min-width:0}
+.row.tap{cursor:pointer;border-radius:12px;transition:background .2s}
+.tile{width:46px;height:46px;border-radius:15px;display:grid;place-items:center;font-size:24px;flex:none;background:var(--card2)}
+.empty{text-align:center;padding:26px 10px;color:var(--mu)}
+.empty .e{font-size:44px;display:block;margin-bottom:8px;animation:bob 3s ease-in-out infinite}
+.pair{display:flex;gap:8px}.pair>*{flex:1}
+.field{margin-bottom:10px}.field label{display:block;font-size:12px;color:var(--mu);margin:0 0 5px 4px;letter-spacing:.04em}
+/* hero */
+.hero .lab{color:var(--mu);font-size:13px}.hero .num{font-size:38px;font-weight:800;letter-spacing:-.03em;margin:2px 0 4px;font-variant-numeric:tabular-nums}
+.delta{display:inline-block;font-size:13px;padding:3px 9px;border-radius:20px;background:var(--card2)}
+.delta.up{color:var(--out)}.delta.down{color:var(--ok)}
+.spark{height:60px;margin-top:10px}.spark svg{width:100%;height:100%;overflow:visible}
+.anim .spark .line{stroke-dasharray:1;stroke-dashoffset:1;animation:dash 1.1s .2s var(--ease) forwards}
+@keyframes dash{to{stroke-dashoffset:0}}
+.qgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.q{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:14px;text-align:left;display:flex;flex-direction:column;gap:6px;min-height:104px;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+.q .qi{font-size:26px}.q b{font-size:15px}.q span.s{font-size:13px;color:var(--mu)}
+.q.main{background:linear-gradient(135deg,var(--a1),var(--a2));border:0;color:#04101a}.q.main span.s{color:rgba(4,16,26,.7)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:var(--card2);border:1px solid var(--line);border-radius:20px;padding:7px 12px;font-size:14px;display:inline-flex;align-items:center;gap:6px;max-width:100%}
+.dot{width:8px;height:8px;border-radius:50%;flex:none}
+/* nav */
+.nav{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(10px + var(--sb));width:min(560px,calc(100% - 20px));display:grid;grid-template-columns:repeat(5,1fr);background:rgba(18,24,48,.82);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);border:1px solid var(--line);border-radius:26px;padding:6px;z-index:20}
+.nav .ind{position:absolute;top:6px;bottom:6px;left:6px;width:calc((100% - 12px)/5);border-radius:20px;background:linear-gradient(135deg,color-mix(in srgb,var(--a1) 30%,transparent),color-mix(in srgb,var(--a2) 30%,transparent));transition:transform .45s var(--ease);transform:translateX(calc(var(--i)*100%))}
+.nav button{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 0 7px;color:var(--mu);font-size:11px;border-radius:20px}
+.nav button.on{color:var(--tx)}
+.nav button svg{transition:transform .35s var(--ease)}.nav button.on svg{transform:translateY(-1px) scale(1.12)}
+.badge{position:absolute;top:3px;left:calc(50% + 6px);min-width:18px;height:18px;border-radius:9px;background:var(--out);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;padding:0 5px}
+.fab{position:fixed;right:max(16px,calc(50% - 264px));bottom:calc(88px + var(--sb));width:58px;height:58px;border-radius:20px;background:linear-gradient(135deg,var(--a1),var(--a2));color:#04101a;display:grid;place-items:center;box-shadow:0 14px 34px -10px var(--a1);z-index:19;animation:pop .5s var(--ease) both .3s}
+@keyframes pop{from{transform:scale(0)}}
+body.picking .nav,body.picking .fab{display:none}
+/* segmented */
+.seg{position:relative;display:grid;grid-template-columns:repeat(var(--n),1fr);background:rgba(255,255,255,.07);border-radius:14px;padding:3px}
+.seg .thumb{position:absolute;top:3px;bottom:3px;left:3px;width:calc((100% - 6px)/var(--n));border-radius:11px;background:linear-gradient(135deg,var(--a1),var(--a2));transform:translateX(calc(var(--i)*100%));transition:transform .4s var(--ease),background .3s}
+.seg[data-v=ok] .thumb{background:var(--ok)}.seg[data-v=low] .thumb{background:var(--low)}.seg[data-v=out] .thumb{background:var(--out)}
+.seg button{position:relative;padding:8px 4px;font-size:14px;color:var(--mu);border-radius:11px;transition:color .25s}
+.seg button.on{color:#04101a;font-weight:700}
+/* inventory + list */
+.grp{font-size:12px;letter-spacing:.08em;text-transform:uppercase;margin:16px 4px 8px;display:flex;align-items:center;gap:8px;color:var(--mu)}
+.item{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:12px;margin-bottom:8px}
+.item .hd{display:flex;align-items:center;gap:8px;margin-bottom:9px}.item .hd b{flex:1;min-width:0;font-weight:600}
+.x{width:30px;height:30px;border-radius:10px;color:var(--mu);display:grid;place-items:center;flex:none}
+.check{width:30px;height:30px;border-radius:50%;border:2px solid var(--mu);flex:none;display:grid;place-items:center;color:transparent;transition:all .3s var(--ease)}
+.sitem{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--card);border:1px solid var(--line);border-radius:18px;margin-bottom:8px;transition:transform .4s var(--ease),opacity .35s,max-height .4s .1s,margin .4s .1s,padding .4s .1s;max-height:80px;overflow:hidden}
+.sitem.done{transform:translateX(60px);opacity:0;max-height:0;margin:0;padding-top:0;padding-bottom:0}
+.sitem.done .check{background:var(--ok);border-color:var(--ok);color:#04101a}
+.who{font-size:18px;flex:none}
+/* menu */
+.week{display:flex;align-items:center;justify-content:space-between;margin:14px 2px 10px}.week b{font-size:15px}
+.day{width:100%;display:flex;align-items:center;gap:12px;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:10px 12px;margin-bottom:8px;min-height:68px}
+.day.today{border-color:var(--a1);box-shadow:0 0 0 1px var(--a1) inset,0 10px 30px -16px var(--a1)}
+.dd{width:44px;text-align:center;flex:none}.dd b{display:block;font-size:12px;color:var(--mu);font-weight:600;letter-spacing:.05em;text-transform:uppercase}.dd span{font-size:22px;font-weight:750}
+.day .tile{color:#fff}
+.addday{flex:1;border:1.5px dashed var(--line);border-radius:14px;padding:13px;color:var(--mu);text-align:center;font-size:14px}
+.deck{position:relative;height:min(430px,60dvh);margin:6px 0 14px;touch-action:pan-y}
+.scard{position:absolute;inset:0;border-radius:30px;padding:24px;display:flex;flex-direction:column;justify-content:flex-end;color:#fff;overflow:hidden;box-shadow:0 24px 50px -20px rgba(0,0,0,.6);transition:transform .45s var(--ease);will-change:transform;-webkit-user-select:none;user-select:none;touch-action:pan-y}
+.scard.top{cursor:grab;z-index:3}.scard.top:active{cursor:grabbing}
+.scard .semoji{position:absolute;top:8%;left:0;right:0;text-align:center;font-size:clamp(90px,28vw,130px);filter:drop-shadow(0 12px 18px rgba(0,0,0,.35));animation:bob 4s ease-in-out infinite}
+.scard h3{font-size:28px;line-height:1.1;font-weight:800;letter-spacing:-.02em;margin-bottom:12px;overflow-wrap:anywhere}
+.ings{display:flex;flex-wrap:wrap;gap:6px}.ings span{background:rgba(255,255,255,.2);backdrop-filter:blur(8px);padding:5px 10px;border-radius:14px;font-size:13px}
+.stamp{position:absolute;top:24px;border:3px solid;border-radius:12px;padding:4px 12px;font-weight:900;font-size:22px;letter-spacing:.06em;opacity:0;transform:rotate(-12deg)}
+.stamp.yes{left:20px;color:#bbf7d0;border-color:#bbf7d0;opacity:var(--sy,0)}
+.stamp.no{right:20px;color:#fecdd3;border-color:#fecdd3;opacity:var(--sn,0);transform:rotate(12deg)}
+.deck-empty{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:10px;text-align:center;border:1.5px dashed var(--line);border-radius:30px;padding:20px}
+.big-emoji{font-size:56px}
+.actions{display:flex;justify-content:center;gap:18px;margin-bottom:6px}
+.round{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;font-size:28px;background:var(--card2);border:1px solid var(--line)}
+.round.s{width:48px;height:48px;font-size:20px;align-self:center}
+.round.yes{background:rgba(52,211,153,.18)}.round.no{background:rgba(251,113,133,.18)}
+/* stats */
+.mnav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.mnav b{font-size:17px}
+.donutw{display:flex;gap:16px;align-items:center}.donut{width:132px;height:132px;position:relative;flex:none}.donut svg{width:100%;height:100%}
+.donut .c{position:absolute;inset:0;display:grid;place-content:center;text-align:center;font-size:12px;color:var(--mu)}.donut .c b{font-size:15px;color:var(--tx)}
+.legend{flex:1;min-width:0}.lg{display:flex;align-items:center;gap:8px;font-size:14px;padding:3px 0}.lg .n{flex:1;min-width:0}
+.bar{height:9px;border-radius:5px;background:rgba(255,255,255,.07);overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,var(--a1),var(--a2));transform-origin:left}
+.anim .bar i{animation:grow .9s var(--ease) both .15s}@keyframes grow{from{transform:scaleX(0)}}
+.brow{margin-bottom:12px}.brow:last-child{margin-bottom:0}.brow .t{display:flex;justify-content:space-between;gap:10px;font-size:14px}
+/* sheet */
+.sback{position:fixed;inset:0;background:rgba(3,6,15,.62);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);opacity:0;transition:opacity .3s;z-index:40}.sback.open{opacity:1}
+.sheet{position:fixed;left:0;right:0;bottom:0;margin:0 auto;max-width:560px;max-height:90dvh;overflow:auto;overscroll-behavior:contain;background:#121830;border:1px solid var(--line);border-bottom:0;border-radius:28px 28px 0 0;transform:translateY(100%);transition:transform .42s var(--ease);z-index:41;padding:0 16px calc(20px + var(--sb))}
+.sheet.open{transform:translateY(0)}
+.grab{position:sticky;top:0;padding:10px 0 12px;display:grid;place-items:center;touch-action:none;background:#121830;z-index:2}.grab::before{content:"";width:42px;height:5px;border-radius:3px;background:rgba(255,255,255,.2)}
+.sbody h2.t{font-size:22px;font-weight:800;letter-spacing:-.02em;margin-bottom:14px;text-transform:none;color:var(--tx);letter-spacing:-.02em}
+.err{color:var(--out);font-size:14px;margin:6px 2px}
+.scan{position:relative;border-radius:20px;overflow:hidden;margin-bottom:12px;background:#000}.scan img{display:block;width:100%;max-height:300px;object-fit:cover;opacity:.7}
+.scan::after{content:"";position:absolute;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,var(--a1),transparent);box-shadow:0 0 22px var(--a1);animation:scanl 1.6s ease-in-out infinite alternate}
+@keyframes scanl{from{top:0}to{top:calc(100% - 3px)}}
+.rrow{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:16px;padding:10px;margin-bottom:8px;display:grid;gap:8px}
+.rrow .l2{display:grid;grid-template-columns:62px 1fr 1.3fr 36px;gap:8px;align-items:center}
+.rrow input,.rrow select{padding:10px}
+.total{font-size:26px;font-weight:800;margin:6px 0 12px;font-variant-numeric:tabular-nums}
+.toast{position:fixed;left:50%;bottom:calc(150px + var(--sb));transform:translate(-50%,0);background:#1c2447;border:1px solid var(--line);color:var(--tx);padding:11px 16px;border-radius:16px;z-index:60;box-shadow:0 14px 40px -12px #000;max-width:calc(100% - 32px);text-align:center;font-size:15px;animation:toast .45s var(--ease) both}
+.toast.out{opacity:0;transform:translate(-50%,10px);transition:all .3s}
+@keyframes toast{from{opacity:0;transform:translate(-50%,16px) scale(.94)}}
+.conf{position:fixed;z-index:70;pointer-events:none;font-size:22px}
+/* profile pick */
+.pick{min-height:100dvh;display:flex;flex-direction:column;justify-content:center;padding:calc(var(--st) + 20px) 18px calc(30px + var(--sb));max-width:560px;margin:0 auto}
+.pick h1{font-size:34px;font-weight:850;letter-spacing:-.03em;text-align:center}.pick .sub{text-align:center;color:var(--mu);margin:6px 0 26px}
+.pcards{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.pcard{position:relative;overflow:hidden;border-radius:30px;padding:26px 14px 22px;min-height:min(300px,46dvh);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:#fff;box-shadow:0 26px 50px -24px var(--c);transition:transform .5s var(--ease),opacity .4s,filter .4s;animation:rise .7s var(--ease) both}
+.pcard[data-p=patrik]{--c:#0ea5e9;background:linear-gradient(160deg,#14b8a6,#2563eb)}
+.pcard[data-p=dorina]{--c:#f43f5e;background:linear-gradient(160deg,#fb7185,#f59e0b);animation-delay:.1s}
+.pcard .pet{font-size:clamp(70px,22vw,98px);line-height:1;filter:drop-shadow(0 12px 14px rgba(0,0,0,.3));animation:wag 2.6s ease-in-out infinite;transform-origin:50% 90%}
+.pcard[data-p=dorina] .pet{animation-name:sway;animation-duration:4s}
+@keyframes wag{0%,100%{transform:rotate(-7deg)}50%{transform:rotate(7deg) translateY(-4px)}}
+@keyframes sway{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-6px) rotate(3deg)}}
+.pcard b{font-size:24px;font-weight:800;letter-spacing:-.02em}.pcard span.l{font-size:14px;opacity:.85}
+.pcard .fl{position:absolute;bottom:-20px;font-size:22px;opacity:0;animation:flt 6s linear infinite;pointer-events:none}
+@keyframes flt{10%{opacity:.8}to{transform:translateY(-330px) rotate(40deg);opacity:0}}
+.pcards.chosen .pcard:not(.sel){opacity:0;transform:scale(.88);filter:blur(4px)}.pcards.chosen .pcard.sel{transform:scale(1.06)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<div class="aurora"><i></i><i></i><i></i></div>
+<div id="view"></div>
+<nav class="nav" id="nav"></nav>
+
+<script>
+"use strict";
+/* ============================================================
+   Háztartás – egyetlen fájl, build nélkül.
+   Háttér: Firebase Realtime Database REST + EventSource (opcionális),
+   nélküle helyben (localStorage) működik. Blokkolvasás: Claude vision,
+   közvetlenül a böngészőből (saját API-kulccsal).
+   ============================================================ */
+const PROFILES = {
+  patrik:{name:"Patrik",pet:"🐶",petName:"kutyás",other:"dorina",quick:["Kutyatáp","Jutalomfalat","Kutyasampon"],sounds:["Vau! 🐾","Sétálunk egyet?","Jutalomfalat? 🦴","Farokcsóválás: 100%"],fl:["🦴","🐾","🎾"]},
+  dorina:{name:"Dorina",pet:"🐱",petName:"cicás",other:"patrik",quick:["Macskatáp","Macskaalom","Jutalomfalat"],sounds:["Miau! 🐾","Hol az eledel?","Doromb… 💤","Ez az én dobozom!"],fl:["🐟","🐾","🧶"]}
+};
+const CATS=[["tejtermék","🥛","#60a5fa"],["hús","🥩","#fb7185"],["pékáru","🥖","#fbbf24"],["zöldség-gyümölcs","🥦","#34d399"],["édesség","🍫","#c084fc"],["háztartási","🧴","#22d3ee"],["állateledel","🐾","#fb923c"],["egyéb","📦","#94a3b8"]];
+const catInfo=n=>CATS.find(c=>c[0]===n)||CATS[CATS.length-1];
+const DAYS=["Hétfő","Kedd","Szerda","Csütörtök","Péntek","Szombat","Vasárnap"];
+const DS=["HÉT","KED","SZE","CSÜ","PÉN","SZO","VAS"];
+const MON=["január","február","március","április","május","június","július","augusztus","szeptember","október","november","december"];
+const MS=["jan.","febr.","márc.","ápr.","máj.","jún.","júl.","aug.","szept.","okt.","nov.","dec."];
+const STATUS={ok:["Van","var(--ok)"],low:["Kevés","var(--low)"],out:["Nincs","var(--out)"]};
+const SYNC_LABEL={local:"Helyi",connecting:"Csatlakozás…",live:"Szinkronban",offline:"Offline"};
+const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function M(id,name,emoji,ing){return{id,name,emoji,ingredients:ing.split(",").map(s=>s.trim())}}
+const SEED=[
+M("s1","Gulyásleves","🍲","marhahús, burgonya, sárgarépa, hagyma, paprika"),
+M("s2","Rántott csirkemell rizzsel","🍗","csirkemell, tojás, zsemlemorzsa, liszt, rizs"),
+M("s3","Paprikás krumpli","🥔","burgonya, kolbász, hagyma, paprika"),
+M("s4","Spagetti bolognai","🍝","spagetti, darált hús, paradicsomszósz, hagyma, sajt"),
+M("s5","Töltött káposzta","🥬","savanyú káposzta, darált hús, rizs, hagyma, füstölt hús"),
+M("s6","Lecsó kolbásszal","🫑","paprika, paradicsom, hagyma, kolbász, tojás"),
+M("s7","Rakott krumpli","🥔","burgonya, tojás, kolbász, tejföl"),
+M("s8","Zöldborsófőzelék","🥣","zöldborsó, liszt, tej, tojás"),
+M("s9","Tökfőzelék fasírttal","🥒","tök, tejföl, darált hús, tojás, zsemle"),
+M("s10","Csirkepaprikás nokedlivel","🍗","csirkecomb, tejföl, paprika, liszt, tojás"),
+M("s11","Húsleves","🍜","csirkehús, sárgarépa, petrezselyem, fehérrépa, cérnametélt"),
+M("s12","Sült csirkecomb burgonyával","🍗","csirkecomb, burgonya, fokhagyma"),
+M("s13","Túrós csusza","🧀","tészta, túró, tejföl, szalonna"),
+M("s14","Palacsinta","🥞","liszt, tej, tojás, lekvár"),
+M("s15","Szilvásgombóc","🍑","burgonya, szilva, liszt, tojás"),
+M("s16","Sertéspörkölt nokedlivel","🍖","sertéshús, hagyma, paprika, liszt, tojás"),
+M("s17","Brassói aprópecsenye","🥓","sertéshús, burgonya, fokhagyma"),
+M("s18","Rántott sajt hasábburgonyával","🧀","sajt, tojás, zsemlemorzsa, burgonya"),
+M("s19","Chilis bab","🌶️","bab, darált hús, paradicsom, hagyma"),
+M("s20","Sonkás kocka","🍝","tészta, sonka, tejföl, sajt"),
+M("s21","Mákos tészta","🍝","tészta, mák, cukor"),
+M("s22","Lasagne","🧀","lasagne tészta, darált hús, paradicsomszósz, sajt, tej"),
+M("s23","Halrudacska burgonyapürével","🐟","halrudacska, burgonya, tej, vaj"),
+M("s24","Rántotta pirítóssal","🍳","tojás, kenyér, paprika"),
+M("s25","Zöldségleves","🥕","sárgarépa, burgonya, zeller, zöldborsó, petrezselyem"),
+];
+
+/* ---------- segédek ---------- */
+const $=s=>document.querySelector(s);
+const pad=n=>String(n).padStart(2,"0");
+const fmt=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const parseD=s=>{const[y,m,d]=String(s).split("-").map(Number);return new Date(y||1970,(m||1)-1,d||1)};
+const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
+const monday=d=>{const x=new Date(d);x.setDate(x.getDate()-(x.getDay()+6)%7);x.setHours(0,0,0,0);return x};
+const huf=n=>String(Math.round(Number(n)||0)).replace(/\B(?=(\d{3})+(?!\d))/g,"\u00a0")+"\u00a0Ft";
+const norm=s=>String(s||"").trim().toLowerCase();
+const keyOf=s=>norm(s).replace(/[.$#\[\]\/]/g,"_");
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const hue=s=>{let h=0;for(const c of String(s))h=(h*31+c.charCodeAt(0))%360;return h};
+const grad=m=>{const h=hue(m.name);return`linear-gradient(145deg,hsl(${h} 68% 46%),hsl(${(h+55)%360} 70% 28%))`};
+const mealImg=m=>{const u=(T.img||{})[m.id];return typeof u==="string"&&u.startsWith("https://upload.wikimedia.org/")?u:""};
+const mealBg=(m,big)=>{const u=mealImg(m);return u?`background:linear-gradient(180deg,rgba(0,0,0,${big?".0":".05"}) ${big?"35%":"0"},rgba(0,0,0,${big?".72":".45"})),url(${JSON.stringify(u)}) center/cover`:`background:${grad(m)}`};
+const mealTile=m=>h("div",{class:"tile",style:mealBg(m)+";color:#fff"},mealImg(m)?null:m.emoji);
+const afterPaint=f=>requestAnimationFrame(()=>requestAnimationFrame(f));
+const LS=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}};
+const LSset=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+const dayLabel=ds=>{const d=parseD(ds);return DAYS[(d.getDay()+6)%7]+", "+MS[d.getMonth()]+" "+d.getDate()+"."};
+const buzz=()=>{try{navigator.vibrate&&navigator.vibrate(12)}catch(e){}};
+
+function h(tag,props,...kids){
+  const e=document.createElement(tag);
+  for(const[k,v]of Object.entries(props||{})){
+    if(v==null||v===false&&k!=="value"&&k!=="checked")continue;
+    if(k==="class")e.className=v;
+    else if(k==="style")e.style.cssText=v;
+    else if(k.startsWith("on"))e.addEventListener(k.slice(2),v);
+    else if(k in e)e[k]=v;
+    else e.setAttribute(k,v);
+  }
+  for(const c of kids.flat(2))if(c!=null&&c!==false)e.append(c.nodeType?c:document.createTextNode(c));
+  return e;
+}
+const ico=(inner,s=22)=>{const e=document.createElement("span");e.style.display="grid";e.innerHTML=`<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;return e};
+const I={
+  home:'<path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+  inv:'<path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>',
+  list:'<circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h3l2.7 12.4a1 1 0 0 0 1 .8h9.2a1 1 0 0 0 1-.8L21 7H6"/>',
+  menu:'<rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 10h18M8 2v4M16 2v4"/>',
+  stats:'<path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/>',
+  gear:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9L7 7M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  x:'<path d="M6 6l12 12M18 6L6 18"/>',
+  chev:'<path d="M9 6l6 6-6 6"/>',
+  chevl:'<path d="M15 6l-6 6 6 6"/>',
+  tick:'<path d="M5 13l4 4L19 7"/>',
+};
+
+/* ---------- adattár: helyi cache + (opcionális) Firebase RTDB REST ---------- */
+let cfg=Object.assign({dbUrl:"",apiKey:"",model:"claude-haiku-5-5"},LS("hh.cfg",{}));
+let T=LS("hh.cache",{});
+if(!T||typeof T!=="object")T={};
+let pending=LS("hh.pending",[]);
+let sync=cfg.dbUrl?"connecting":"local";
+let me=LS("hh.me",null);if(!PROFILES[me])me=null;
+const segs=p=>String(p).split("/").filter(Boolean);
+function getAt(p){let o=T;for(const k of segs(p)){if(o==null||typeof o!=="object")return undefined;o=o[k]}return o}
+function setAt(p,v){const a=segs(p);if(!a.length){T=v&&typeof v==="object"?v:{};return}let o=T;for(let i=0;i<a.length-1;i++){if(o[a[i]]==null||typeof o[a[i]]!=="object")o[a[i]]={};o=o[a[i]]}const k=a[a.length-1];if(v==null)delete o[k];else o[k]=v}
+function multi(u){
+  for(const[p,v]of Object.entries(u))setAt(p,v);
+  LSset("hh.cache",T);
+  if(cfg.dbUrl){pending.push(u);LSset("hh.pending",pending);flush()}
+  scheduleRender(true);
+}
+const write=(p,v)=>multi({[p]:v==null?null:v});
+let flushing=false,flushTimer=0;
+async function flush(){
+  if(flushing||!cfg.dbUrl||!pending.length)return;
+  flushing=true;
+  try{
+    while(pending.length){
+      const r=await fetch(cfg.dbUrl+"/.json",{method:"PATCH",body:JSON.stringify(pending[0])});
+      if(!r.ok)throw new Error("HTTP "+r.status);
+      pending.shift();LSset("hh.pending",pending);
+    }
+    if(sync==="offline")setSync("live");
+  }catch(e){setSync("offline");clearTimeout(flushTimer);flushTimer=setTimeout(flush,10000)}
+  finally{flushing=false}
+}
+let es=null;
+function connect(){
+  if(es){es.close();es=null}
+  if(!cfg.dbUrl||typeof EventSource==="undefined"){setSync("local");return}
+  setSync("connecting");
+  const after=()=>{LSset("hh.cache",T);scheduleRender(false)};
+  es=new EventSource(cfg.dbUrl+"/.json");
+  es.addEventListener("put",e=>{try{const d=JSON.parse(e.data);if(d.path==="/")setAt("/",d.data);else setAt(d.path,d.data);after()}catch(x){}});
+  es.addEventListener("patch",e=>{try{const d=JSON.parse(e.data);for(const k in d.data)setAt((d.path==="/"?"":d.path)+"/"+k,d.data[k]);after()}catch(x){}});
+  es.onopen=()=>{setSync("live");flush()};
+  es.onerror=()=>setSync("offline");
+}
+function setSync(s){sync=s;document.querySelectorAll(".sync").forEach(el=>{el.className="sync "+s;el.querySelector("span").textContent=SYNC_LABEL[s]})}
+
+/* ---------- származtatott adatok ---------- */
+const txs=()=>Object.entries(T.tx||{}).map(([id,t])=>({id,...t,items:Array.isArray(t.items)?t.items:Object.values(t.items||{})}));
+const inv=()=>Object.entries(T.inv||{}).map(([k,v])=>({k,...v}));
+const shop=()=>Object.entries(T.shop||{}).map(([id,v])=>({id,...v}));
+const allMeals=()=>[...SEED,...Object.entries(T.meals||{}).map(([id,m])=>({id,name:m.name,emoji:m.emoji||"🍽️",ingredients:Array.isArray(m.ingredients)?m.ingredients:Object.values(m.ingredients||{})}))];
+const mealById=id=>allMeals().find(m=>m.id===id);
+const shopHas=n=>shop().some(s=>norm(s.name)===norm(n));
+function have(ing){const g=norm(ing);if(g.length<3)return false;return inv().some(i=>{if(i.status!=="ok")return false;const n=norm(i.name);return n.includes(g)||g.includes(n)&&n.length>=3})}
+function setInv(name,status,extra){const n=String(name).trim();if(!n)return{};const k=keyOf(n);return{["inv/"+k]:{name:n,status,updatedAt:Date.now()},...(extra||{})}}
+function addShopU(name){const n=String(name).trim();if(!n||shopHas(n))return{};return{["shop/"+uid()]:{name:n,by:me,at:Date.now()}}}
+const tmeta=()=>PROFILES[me];
+
+/* ---------- animáció / UI alapok ---------- */
+let tab="home",menuMode="week",weekStart=monday(new Date()),statMonth=fmt(new Date()).slice(0,7),invQ="",ANIM=true,animNext=true,busy=0,dirty=false,raf=0,lastVote=null;
+function num(el,to,f=huf){
+  if(!ANIM||reduced){el.textContent=f(to);return}
+  const t0=performance.now();el.textContent=f(0);
+  const st=t=>{const p=Math.min(1,(t-t0)/750);el.textContent=f(to*(1-Math.pow(1-p,3)));if(p<1&&el.isConnected)requestAnimationFrame(st)};
+  requestAnimationFrame(st);
+}
+function toast(msg,ico){
+  document.querySelectorAll(".toast").forEach(t=>t.remove());
+  const t=h("div",{class:"toast",role:"status"},(ico?ico+" ":"")+msg);document.body.append(t);
+  setTimeout(()=>{t.classList.add("out");setTimeout(()=>t.remove(),320)},2200);
+}
+function confetti(n=18){
+  if(reduced)return;const em=["🎉","✨","🥦","🍎","🧀","🥖",tmeta()?tmeta().pet:"🐾"];
+  for(let i=0;i<n;i++){
+    const e=h("span",{class:"conf"},em[i%em.length]);e.style.left="50%";e.style.top="62%";document.body.append(e);
+    const dx=(Math.random()-.5)*340,dy=-120-Math.random()*260,r=(Math.random()-.5)*540;
+    const a=e.animate([{transform:"translate(-50%,0) scale(.6)",opacity:1},{transform:`translate(calc(-50% + ${dx}px),${dy}px) rotate(${r}deg) scale(1)`,opacity:1,offset:.6},{transform:`translate(calc(-50% + ${dx*1.1}px),${dy+160}px) rotate(${r*1.2}deg) scale(.7)`,opacity:0}],{duration:1100+Math.random()*400,easing:"cubic-bezier(.2,.7,.3,1)"});
+    a.onfinish=()=>e.remove();
+  }
+}
+function sheet(build){
+  const back=h("div",{class:"sback"}),el=h("div",{class:"sheet",role:"dialog","aria-modal":"true"}),grab=h("div",{class:"grab"}),body=h("div",{class:"sbody"});
+  el.append(grab,body);document.body.append(back,el);document.body.style.overflow="hidden";
+  let closed=false;
+  const close=()=>{if(closed)return;closed=true;el.classList.remove("open");back.classList.remove("open");
+    setTimeout(()=>{back.remove();el.remove();if(!document.querySelector(".sheet"))document.body.style.overflow="";if(dirty){dirty=false;scheduleRender(false)}},340)};
+  back.addEventListener("click",close);
+  let sy=0,dy=0,dr=false;
+  grab.addEventListener("pointerdown",e=>{dr=true;sy=e.clientY;dy=0;el.style.transition="none";grab.setPointerCapture(e.pointerId)});
+  grab.addEventListener("pointermove",e=>{if(!dr)return;dy=Math.max(0,e.clientY-sy);el.style.transform=`translateY(${dy}px)`});
+  const up=()=>{if(!dr)return;dr=false;el.style.transition="";el.style.transform="";if(dy>110)close();dy=0};
+  grab.addEventListener("pointerup",up);grab.addEventListener("pointercancel",up);
+  build(body,close);
+  afterPaint(()=>{el.classList.add("open");back.classList.add("open")});
+  return close;
+}
+function seg(opts,val,on){
+  const idx=v=>Math.max(0,opts.findIndex(o=>o[0]===v));
+  const el=h("div",{class:"seg",style:`--n:${opts.length};--i:${idx(val)}`,"data-v":val});
+  el.append(h("i",{class:"thumb"}));
+  opts.forEach(([v,l])=>el.append(h("button",{class:v===val?"on":"",type:"button",onclick:()=>{
+    if(el.dataset.v===v)return;el.dataset.v=v;el.style.setProperty("--i",idx(v));
+    el.querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.v===v));buzz();setTimeout(()=>on(v),210)},"data-v":v},l)));
+  return el;
+}
+function spark(vals){
+  const W=300,H=60,p=4,mx=Math.max(...vals,1),n=Math.max(vals.length-1,1);
+  const pts=vals.map((v,i)=>[p+i*(W-2*p)/n,H-p-(v/mx)*(H-2*p)]);
+  const d=pts.map((q,i)=>(i?"L":"M")+q[0].toFixed(1)+" "+q[1].toFixed(1)).join(" ");
+  const el=h("div",{class:"spark"});
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><defs><linearGradient id="sg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="var(--a1)" stop-opacity=".35"/><stop offset="1" stop-color="var(--a1)" stop-opacity="0"/></linearGradient></defs><path d="${d} L${pts[pts.length-1][0].toFixed(1)} ${H} L${pts[0][0].toFixed(1)} ${H}Z" fill="url(#sg)"/><path class="line" d="${d}" pathLength="1" fill="none" stroke="var(--a1)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>`;
+  return el;
+}
+function donut(parts,total,centerLabel){
+  const el=h("div",{class:"donut"});let cum=0,c="";
+  parts.forEach((p,i)=>{const pct=p.v/total*100,len=Math.max(0,pct-.8);
+    c+=`<circle r="15.9155" cx="21" cy="21" fill="none" stroke="${p.color}" stroke-width="5" data-t="${len.toFixed(2)}" style="stroke-dasharray:${ANIM?0:len.toFixed(2)} 100;stroke-dashoffset:${(-cum).toFixed(2)};transition:stroke-dasharray .9s var(--ease) ${i*70}ms"/>`;cum+=pct});
+  el.innerHTML=`<svg viewBox="0 0 42 42" style="transform:rotate(-90deg)"><circle r="15.9155" cx="21" cy="21" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="5"/>${c}</svg>`;
+  const ctr=h("div",{class:"c"},h("b",{},centerLabel),"összesen");el.append(ctr);
+  if(ANIM)afterPaint(()=>el.querySelectorAll("circle[data-t]").forEach(x=>{x.style.strokeDasharray=x.dataset.t+" 100"}));
+  return el;
+}
+
+/* ---------- render keret ---------- */
+function scheduleRender(local){
+  if(raf)return;
+  raf=requestAnimationFrame(()=>{raf=0;
+    const ae=document.activeElement,editing=ae&&/INPUT|SELECT|TEXTAREA/.test(ae.tagName)&&$("#view").contains(ae);
+    if(busy||(!local&&editing)){dirty=true;return}
+    render();
+  });
+}
+const TABS=[["home","Kezdőlap","home"],["inv","Leltár","inv"],["list","Lista","list"],["menu","Menü","menu"],["stats","Statisztika","stats"]];
+function render(){
+  ANIM=animNext&&!reduced;const a=animNext;animNext=false;
+  document.body.dataset.user=me||"";document.body.classList.toggle("picking",!me);
+  const view=$("#view");
+  if(!me){renderPick(view);return}
+  const content=({home:viewHome,inv:viewInv,list:viewList,menu:viewMenu,stats:viewStats})[tab]();
+  view.replaceChildren(...content);
+  [...view.children].forEach((c,i)=>{c.classList.add("rise");c.style.setProperty("--i",i)});
+  view.classList.toggle("anim",a);
+  // nav
+  const nav=$("#nav");let ind=nav.querySelector(".ind");
+  if(!ind){ind=h("i",{class:"ind"});nav.append(ind)}
+  ind.style.setProperty("--i",TABS.findIndex(t=>t[0]===tab));
+  nav.querySelectorAll("button").forEach(b=>b.remove());
+  const cnt=shop().length;
+  TABS.forEach(([id,l,ic])=>{const b=h("button",{class:tab===id?"on":"",onclick:()=>go(id),"aria-label":l},ico(I[ic]),l);
+    if(id==="list"&&cnt)b.append(h("span",{class:"badge"},cnt>99?"99+":cnt));nav.append(b)});
+}
+function go(t){if(t===tab)return;tab=t;if(t==="menu")fetchImgs();animNext=true;buzz();window.scrollTo({top:0});render()}
+
+function topbar(title,sub){
+  const P=tmeta();
+  return h("div",{class:"top"},
+    h("button",{class:"avatar","aria-label":"Háziállat",onclick:e=>petTap(e.currentTarget)},h("span",{},P.pet)),
+    h("div",{class:"ttl"},h("h1",{class:"ell"},title),sub?h("p",{class:"ell"},sub):null),
+    h("button",{class:"sync "+sync,onclick:openSettings},h("i"),h("span",{},SYNC_LABEL[sync])),
+    h("button",{class:"iconbtn","aria-label":"Beállítások",onclick:openSettings},ico(I.gear)));
+}
+function petTap(el){
+  const P=tmeta();toast(P.sounds[Math.floor(Math.random()*P.sounds.length)],P.pet);buzz();
+  if(!reduced)el.animate([{transform:"scale(1)"},{transform:"scale(1.2) rotate(-10deg)"},{transform:"scale(.95) rotate(6deg)"},{transform:"scale(1)"}],{duration:520,easing:"cubic-bezier(.23,1,.32,1)"});
+}
+const emptyBox=(e,t,s)=>h("div",{class:"empty"},h("span",{class:"e"},e),h("b",{style:"color:var(--tx)"},t),s?h("p",{class:"sm"},s):null);
+
+/* ---------- profilválasztó ---------- */
+function renderPick(view){
+  view.classList.remove("anim");
+  const card=id=>{const P=PROFILES[id];
+    const fl=[0,1,2,3,4].map(i=>{const s=h("span",{class:"fl"},P.fl[i%P.fl.length]);s.style.left=(8+i*20)+"%";s.style.animationDelay=(i*1.1)+"s";s.style.animationDuration=(5+i%3)+"s";return s});
+    return h("button",{class:"pcard","data-p":id,onclick:e=>{
+      const box=e.currentTarget.parentNode;box.classList.add("chosen");e.currentTarget.classList.add("sel");buzz();
+      setTimeout(()=>{me=id;LSset("hh.me",me);tab="home";animNext=true;render()},520)}},
+      ...fl,h("span",{class:"pet"},P.pet),h("b",{},P.name),h("span",{class:"l"},P.petName));};
+  view.replaceChildren(h("div",{class:"pick"},h("h1",{},"Ki vagy?"),h("p",{class:"sub"},"Nincs jelszó – csak koppints a profilodra."),
+    h("div",{class:"pcards"},card("patrik"),card("dorina"))));
+}
+
+/* ---------- Kezdőlap ---------- */
+function monthTotal(ym){return txs().filter(t=>String(t.date).slice(0,7)===ym).reduce((s,t)=>s+(+t.total||0),0)}
+function ymAdd(ym,n){const[y,m]=ym.split("-").map(Number);const d=new Date(y,m-1+n,1);return d.getFullYear()+"-"+pad(d.getMonth()+1)}
+function viewHome(){
+  const now=new Date(),ym=fmt(now).slice(0,7),cur=monthTotal(ym),prev=monthTotal(ymAdd(ym,-1));
+  const series=[5,4,3,2,1,0].map(n=>monthTotal(ymAdd(ym,-n)));
+  const numEl=h("div",{class:"num"},huf(cur));num(numEl,cur);
+  let delta=null;
+  if(prev>0){const p=Math.round((cur-prev)/prev*100);delta=h("span",{class:"delta "+(p>0?"up":"down")},(p>0?"▲ +":p<0?"▼ ":"● ")+p+"% a múlt hónaphoz képest")}
+  else if(cur>0)delta=h("span",{class:"delta"},"Az első rögzített hónap");
+  const hero=h("div",{class:"card hero"},h("div",{class:"lab"},MON[now.getMonth()]+" költése"),numEl,delta||h("span",{class:"mu sm"},"Még nincs rögzített vásárlás ebben a hónapban"),spark(series));
+  const todayE=getAt("menu/"+fmt(now)),tm=todayE&&mealById(todayE.mealId);
+  const low=inv().filter(i=>i.status!=="ok");
+  const grid=h("div",{class:"qgrid"},
+    h("button",{class:"q main",onclick:()=>openPurchase()},h("span",{class:"qi"},"📷"),h("b",{},"Új vásárlás"),h("span",{class:"s"},"Blokk fotó vagy kézi")),
+    h("button",{class:"q",onclick:()=>go("list")},h("span",{class:"qi"},"🛒"),h("b",{},"Bevásárlólista"),h("span",{class:"s"},shop().length?shop().length+" tétel vár":"Üres")),
+    h("button",{class:"q",onclick:()=>go("menu")},h("span",{class:"qi"},tm?tm.emoji:"🍽️"),h("b",{class:"ell"},tm?tm.name:"Mára nincs étel"),h("span",{class:"s"},tm?(todayE.leftover?"Maradék ma":"Ma főzünk"):"Válassz a menüben")),
+    h("button",{class:"q",onclick:()=>go("inv")},h("span",{class:"qi"},"📦"),h("b",{},"Fogyóban"),h("span",{class:"s"},low.length?low.length+" tétel":"Minden megvan")));
+  const out=[topbar("Szia, "+tmeta().name+"!",DAYS[(now.getDay()+6)%7].toLowerCase()+" · "+MS[now.getMonth()]+" "+now.getDate()+"."),hero,grid];
+  if(low.length)out.push(h("div",{class:"card"},h("h2",{},"Fogyóban"),h("div",{class:"chips"},low.slice(0,8).map(i=>h("button",{class:"chip",onclick:()=>go("inv")},h("i",{class:"dot",style:"background:"+STATUS[i.status][1]}),h("span",{class:"ell"},i.name))))));
+  const last=txs().sort((a,b)=>String(b.date).localeCompare(String(a.date))||(b.created||0)-(a.created||0)).slice(0,5);
+  out.push(h("div",{class:"card"},h("h2",{},"Utolsó vásárlások"),last.length?last.map(t=>h("div",{class:"row tap",onclick:()=>openTx(t.id)},
+      h("div",{class:"tile"},PROFILES[t.profile]?PROFILES[t.profile].pet:"🧾"),
+      h("div",{class:"grow"},h("div",{class:"ell",style:"font-weight:600"},t.store||"Ismeretlen bolt"),h("div",{class:"mu sm ell"},parseD(t.date).getTime()?MS[parseD(t.date).getMonth()]+" "+parseD(t.date).getDate()+". · "+t.items.length+" tétel":"")),
+      h("b",{style:"flex:none"},huf(t.total)))):emptyBox("🧾","Még nincs vásárlás","Fotózd le a blokkot, vagy vidd fel kézzel.")));
+  return out;
+}
+function openTx(id){
+  const t=txs().find(x=>x.id===id);if(!t)return;
+  sheet((b,close)=>{
+    b.append(h("h2",{class:"t wrap"},t.store||"Ismeretlen bolt"),h("p",{class:"mu sm",style:"margin:-8px 0 12px"},dayLabel(t.date)+" · "+(PROFILES[t.profile]?PROFILES[t.profile].name:"")+" "+(PROFILES[t.profile]?PROFILES[t.profile].pet:"")));
+    t.items.forEach(i=>b.append(h("div",{class:"row"},h("div",{class:"tile",style:"width:38px;height:38px;font-size:19px"},catInfo(i.category)[1]),
+      h("div",{class:"grow"},h("div",{class:"wrap"},i.name),h("div",{class:"mu sm"},i.quantity+" × "+huf(i.unitPrice))),h("b",{style:"flex:none"},huf(i.quantity*i.unitPrice)))));
+    b.append(h("div",{class:"total"},huf(t.total)),h("button",{class:"btn danger block",onclick:()=>{if(confirm("Törlöd ezt a vásárlást? A leltár nem változik.")){write("tx/"+id,null);close();toast("Törölve","🗑️")}}},"Vásárlás törlése"));
+  });
+}
+
+/* ---------- Leltár ---------- */
+function viewInv(){
+  const box=h("div");
+  const list=q=>{
+    const items=inv().filter(i=>norm(i.name).includes(norm(q))).sort((a,b)=>a.name.localeCompare(b.name,"hu"));
+    const frag=document.createDocumentFragment();
+    if(!inv().length){frag.append(emptyBox("📦","Üres a leltár","Mentett vásárlásból automatikusan feltöltődik, vagy vedd fel kézzel."));return frag}
+    if(!items.length){frag.append(emptyBox("🔍","Nincs találat"));return frag}
+    for(const st of["out","low","ok"]){
+      const g=items.filter(i=>i.status===st);if(!g.length)continue;
+      frag.append(h("div",{class:"grp"},h("i",{class:"dot",style:"background:"+STATUS[st][1]}),({out:"Elfogyott",low:"Fogyóban",ok:"Van otthon"})[st]+" · "+g.length));
+      g.forEach(i=>frag.append(h("div",{class:"item"},
+        h("div",{class:"hd"},h("b",{class:"wrap"},i.name),h("button",{class:"x","aria-label":"Törlés",onclick:()=>write("inv/"+i.k,null)},ico(I.x,16))),
+        seg([["ok","Van"],["low","Kevés"],["out","Nincs"]],i.status,v=>setStatus(i,v)))));
+    }
+    return frag;
+  };
+  const q=h("input",{placeholder:"Keresés a leltárban…",value:invQ,type:"search",enterKeyHint:"search",oninput:e=>{invQ=e.target.value;box.replaceChildren(list(invQ))}});
+  const add=h("input",{placeholder:"Új tétel a leltárhoz",enterKeyHint:"done"});
+  const doAdd=()=>{const n=add.value.trim();if(!n)return;multi(setInv(n,"ok"));add.value="";toast(n+" a leltárban","📦")};
+  add.addEventListener("keydown",e=>{if(e.key==="Enter")doAdd()});
+  box.append(list(invQ));
+  return[topbar("Leltár","Mi van otthon?"),
+    h("div",{class:"card"},h("div",{class:"pair"},add,h("button",{class:"btn s",style:"flex:0 0 auto",onclick:doAdd},ico(I.plus,18))),h("div",{style:"height:10px"}),q),box];
+}
+function setStatus(i,st){
+  const u=setInv(i.name,st);
+  if(st!=="ok"){const a=addShopU(i.name);Object.assign(u,a);if(Object.keys(a).length)toast(i.name+" felkerült a listára","🛒")}
+  multi(u);
+}
+
+/* ---------- Bevásárlólista ---------- */
+function viewList(){
+  const add=h("input",{placeholder:"Mit kell venni?",enterKeyHint:"done"});
+  const doAdd=n=>{n=(n||add.value).trim();if(!n)return;if(shopHas(n)){toast("Már a listán van","👀");return}multi(addShopU(n));add.value="";buzz()};
+  add.addEventListener("keydown",e=>{if(e.key==="Enter")doAdd()});
+  const items=shop().sort((a,b)=>(a.at||0)-(b.at||0));
+  const quick=tmeta().quick.filter(n=>!shopHas(n));
+  const listBox=items.length?items.map(s=>{
+    const row=h("div",{class:"sitem"},
+      h("button",{class:"check","aria-label":"Megvettem",onclick:()=>{
+        if(row.classList.contains("done"))return;row.classList.add("done");buzz();
+        setTimeout(()=>{if(!getAt("shop/"+s.id))return;multi({["shop/"+s.id]:null,...setInv(s.name,"ok")});confetti(6)},380)}},ico(I.tick,18)),
+      h("div",{class:"ell",style:"flex:1;font-weight:500"},s.name),
+      h("span",{class:"who",title:PROFILES[s.by]?PROFILES[s.by].name:""},PROFILES[s.by]?PROFILES[s.by].pet:""));
+    return row}):[emptyBox("🛍️","A bevásárlólista üres","Ami elfogy a leltárban, ide kerül.")];
+  return[topbar("Lista",items.length?items.length+" tétel":"Közös bevásárlólista"),
+    h("div",{class:"card"},h("div",{class:"pair"},add,h("button",{class:"btn s",style:"flex:0 0 auto",onclick:()=>doAdd()},"Hozzáad")),
+      quick.length?h("div",{class:"chips",style:"margin-top:10px"},quick.map(n=>h("button",{class:"chip",onclick:()=>doAdd(n)},tmeta().pet+" "+n))):null),
+    h("button",{class:"btn ghost block",style:"margin-bottom:12px",onclick:()=>openPurchase()},"🧾 Új vásárlás rögzítése"),
+    h("div",{},listBox)];
+}
+
+/* ---------- Menü ---------- */
+function viewMenu(){
+  const out=[topbar("Menü","Heti terv és válogatás"),h("div",{style:"margin-bottom:12px"},seg([["week","📅 Heti menü"],["swipe","🔥 Válogatás"]],menuMode,v=>{menuMode=v;animNext=true;render()}))];
+  out.push(menuMode==="week"?viewWeek():viewSwipe());
+  if(Object.values(T.img||{}).some(Boolean))out.push(h("p",{class:"mu sm",style:"text-align:center;margin-top:10px"},"Ételfotók: Wikipédia / Wikimedia Commons (szabad licenc)"));
+  return out;
+}
+function weekMissing(days){
+  const set=new Map();
+  days.forEach(d=>{const e=getAt("menu/"+fmt(d));if(!e||e.leftover)return;const m=mealById(e.mealId);if(!m)return;
+    m.ingredients.forEach(g=>{if(!have(g)&&!shopHas(g)&&!set.has(norm(g)))set.set(norm(g),g)})});
+  return[...set.values()];
+}
+function viewWeek(){
+  const days=[...Array(7)].map((_,i)=>addDays(weekStart,i)),todayS=fmt(new Date());
+  const lab=MS[days[0].getMonth()]+" "+days[0].getDate()+". – "+MS[days[6].getMonth()]+" "+days[6].getDate()+".";
+  const wrap=h("div");
+  wrap.append(h("div",{class:"week"},h("button",{class:"iconbtn","aria-label":"Előző hét",onclick:()=>{weekStart=addDays(weekStart,-7);render()}},ico(I.chevl)),
+    h("b",{},lab),h("button",{class:"iconbtn","aria-label":"Következő hét",onclick:()=>{weekStart=addDays(weekStart,7);render()}},ico(I.chev))));
+  days.forEach((d,i)=>{
+    const ds=fmt(d),e=getAt("menu/"+ds),m=e&&mealById(e.mealId);
+    wrap.append(h("button",{class:"day"+(ds===todayS?" today":""),onclick:()=>openDaySheet(ds)},
+      h("div",{class:"dd"},h("b",{},DS[i]),h("span",{},d.getDate())),
+      m?[mealTile(m),h("div",{class:"grow",style:"min-width:0"},h("div",{class:"ell",style:"font-weight:650"},m.name),h("div",{class:"mu sm"},e.leftover?"↩ maradék az előző napról":m.ingredients.length+" hozzávaló"))]
+        :h("div",{class:"addday"},"+ Étel választása")));
+  });
+  const miss=weekMissing(days);
+  wrap.append(h("button",{class:"btn ghost block",style:"margin-top:6px",disabled:!miss.length,onclick:()=>{const u={};miss.forEach(g=>Object.assign(u,addShopU(g)));multi(u);toast(miss.length+" hozzávaló a listára","🛒");buzz()}},
+    miss.length?"🛒 Hiányzó hozzávalók a listára ("+miss.length+")":"✅ Minden hozzávaló megvan / listán van"));
+  return wrap;
+}
+function likesOf(id){return["patrik","dorina"].filter(p=>getAt(`swipes/${p}/${id}`)===1).map(p=>PROFILES[p].pet).join("")}
+function openDaySheet(ds){
+  const e=getAt("menu/"+ds),m=e&&mealById(e.mealId),prev=getAt("menu/"+fmt(addDays(parseD(ds),-1)));
+  sheet((b,close)=>{
+    b.append(h("h2",{class:"t"},dayLabel(ds)));
+    if(m){
+      b.append(h("div",{class:"row"},mealTile(m),h("div",{class:"grow wrap"},h("b",{},m.name),h("div",{class:"mu sm"},e.leftover?"maradék":"főzés")),
+        h("button",{class:"btn danger s",onclick:()=>{write("menu/"+ds,null);close()}},"Töröl")));
+      b.append(h("div",{class:"pair",style:"margin:10px 0"},h("button",{class:"btn ghost",onclick:()=>{close();setTimeout(()=>openCook(m),360)}},"👩‍🍳 Főztem"),
+        prev&&prev.mealId&&!e.leftover?h("button",{class:"btn ghost",onclick:()=>{write("menu/"+ds,{mealId:prev.mealId,leftover:true});close()}},"↩ Maradék"):null));
+    }else if(prev&&prev.mealId){
+      const pm=mealById(prev.mealId);
+      if(pm)b.append(h("button",{class:"btn ghost block",style:"margin-bottom:10px",onclick:()=>{write("menu/"+ds,{mealId:prev.mealId,leftover:true});close();toast("Maradék: "+pm.name,"↩")}},"↩ Maradék tegnapról: "+pm.name));
+    }
+    const q=h("input",{placeholder:"Étel keresése…",type:"search"}),box=h("div",{style:"margin-top:8px"});
+    const draw=t=>{
+      const ms=allMeals().filter(x=>norm(x.name).includes(norm(t))).sort((a,c)=>(likesOf(c.id).length-likesOf(a.id).length)||a.name.localeCompare(c.name,"hu"));
+      box.replaceChildren(...(ms.length?ms.map(x=>h("div",{class:"row tap",onclick:()=>{write("menu/"+ds,{mealId:x.id});close();buzz()}},
+        mealTile(x),h("div",{class:"grow"},h("div",{class:"wrap",style:"font-weight:600"},x.name),h("div",{class:"mu sm ell"},x.ingredients.join(", "))),
+        h("span",{style:"flex:none"},likesOf(x.id)))):[emptyBox("🔍","Nincs ilyen étel")]));
+    };
+    q.addEventListener("input",()=>draw(q.value));draw("");
+    b.append(h("div",{class:"pair"},q,h("button",{class:"btn s",style:"flex:0 0 auto",onclick:()=>{close();setTimeout(()=>openMealForm(id=>write("menu/"+ds,{mealId:id})),360)}},"+ Új")),box);
+  });
+}
+function openCook(m){
+  const marks={};
+  sheet((b,close)=>{
+    b.append(h("h2",{class:"t wrap"},m.emoji+" "+m.name),h("p",{class:"mu sm",style:"margin:-8px 0 12px"},"Mi fogyott el a főzéssel? Jelöld, és felkerül a listára."));
+    m.ingredients.forEach(g=>{
+      const s=seg([["ok","Marad"],["low","Kevés"],["out","Elfogyott"]],"ok",v=>{marks[g]=v});
+      b.append(h("div",{class:"item"},h("div",{class:"hd"},h("b",{class:"wrap"},g)),s));
+    });
+    b.append(h("button",{class:"btn block",style:"margin-top:6px",onclick:()=>{
+      const u={};let n=0;
+      for(const[g,st]of Object.entries(marks)){if(st==="ok")continue;
+        const ex=inv().find(i=>{const a=norm(i.name),c=norm(g);return a===c||a.includes(c)||c.includes(a)});
+        Object.assign(u,setInv(ex?ex.name:g,st),addShopU(ex?ex.name:g));n++}
+      if(n)multi(u);close();toast(n?n+" tétel a listán":"Jó étvágyat!","👩‍🍳");}},"Kész"));
+  });
+}
+function openMealForm(done){
+  sheet((b,close)=>{
+    const name=h("input",{placeholder:"pl. Rakott tészta"}),emoji=h("input",{value:"🍽️",style:"text-align:center;font-size:24px",maxLength:4}),ing=h("textarea",{rows:4,placeholder:"vesszővel vagy új sorral elválasztva"}),err=h("div",{class:"err"});
+    b.append(h("h2",{class:"t"},"Új étel"),
+      h("div",{class:"pair",style:"margin-bottom:10px"},h("div",{style:"flex:0 0 80px"},emoji),name),
+      h("div",{class:"field"},h("label",{},"HOZZÁVALÓK"),ing),err,
+      h("button",{class:"btn block",onclick:()=>{
+        const n=name.value.trim();if(!n){err.textContent="Adj nevet az ételnek.";return}
+        const id=uid();write("meals/"+id,{name:n,emoji:emoji.value.trim()||"🍽️",ingredients:ing.value.split(/[,\n]/).map(s=>s.trim()).filter(Boolean)});
+        close();toast(n+" hozzáadva","🍽️");if(done)done(id)}},"Mentés"));
+  });
+}
+
+/* swipe */
+function viewSwipe(){
+  const mine=getAt("swipes/"+me)||{},other=tmeta().other,queue=allMeals().filter(m=>!(m.id in mine));
+  const deck=h("div",{class:"deck"});
+  if(!queue.length)deck.append(h("div",{class:"deck-empty"},h("div",{class:"big-emoji"},"🎉"),h("b",{},"Végigmentél az összes ételen"),h("p",{class:"mu sm"},"Nézd meg lent a közös kedvenceket, vagy kezdd elölről."),h("button",{class:"btn ghost s",onclick:()=>write("swipes/"+me,null)},"Újrakezdem")));
+  else queue.slice(0,3).reverse().forEach((m,i,arr)=>deck.append(swipeCard(m,arr.length-1-i)));
+  const top=deck.querySelector(".scard.top");
+  const act=h("div",{class:"actions"},
+    h("button",{class:"round s","aria-label":"Visszavonás",disabled:!lastVote,style:lastVote?"":"opacity:.35",onclick:()=>{if(!lastVote)return;write(`swipes/${me}/${lastVote}`,null);lastVote=null}},"↩"),
+    h("button",{class:"round no","aria-label":"Nem",onclick:()=>top&&top._fling(-1)},"✕"),
+    h("button",{class:"round yes","aria-label":"Kérem",onclick:()=>top&&top._fling(1)},"❤️"));
+  const matches=allMeals().filter(m=>getAt(`swipes/${me}/${m.id}`)===1&&getAt(`swipes/${other}/${m.id}`)===1);
+  const cnt=p=>Object.values(getAt("swipes/"+p)||{}).filter(v=>v===1).length;
+  const mc=h("div",{class:"card"},h("h2",{},"Közös kedvencek "+(matches.length?"· "+matches.length:"")),
+    matches.length?matches.map(m=>h("div",{class:"row"},mealTile(m),h("div",{class:"grow wrap",style:"font-weight:600"},m.name),
+      h("button",{class:"btn s",onclick:()=>openPlaceSheet(m)},"Napra"))):emptyBox("🤝","Még nincs egyezés","Ami mindkettőtöknek tetszik, itt jelenik meg. A naptárba te teszed be."),
+    h("p",{class:"mu sm",style:"margin-top:8px"},PROFILES.patrik.pet+" "+cnt("patrik")+" kedvenc · "+PROFILES.dorina.pet+" "+cnt("dorina")+" kedvenc"));
+  const w=h("div");w.append(deck,act,h("div",{style:"height:14px"}),mc);
+  return w;
+}
+function swipeCard(m,depth){
+  const c=h("div",{class:"scard"+(depth?"":" top"),style:`${mealBg(m,true)};${depth?`transform:translateY(${depth*14}px) scale(${1-depth*.05})`:""}`},
+    h("div",{class:"stamp yes"},"KÉREM"),h("div",{class:"stamp no"},"NEM"),mealImg(m)?null:h("div",{class:"semoji"},m.emoji),h("h3",{},m.name),
+    h("div",{class:"ings"},m.ingredients.slice(0,6).map(i=>h("span",{},i))));
+  if(depth)return c;
+  let sx=0,sy=0,dx=0,drag=false,t0=0;
+  const fling=dir=>{
+    c.style.transition="transform .38s cubic-bezier(.5,0,.9,.5),opacity .38s";
+    c.style.setProperty(dir>0?"--sy":"--sn",1);
+    c.style.transform=`translate(${dir*520}px,-50px) rotate(${dir*26}deg)`;c.style.opacity="0";buzz();
+    setTimeout(()=>vote(m,dir),330);
+  };
+  c._fling=fling;
+  c.addEventListener("pointerdown",e=>{drag=true;busy++;sx=e.clientX;sy=e.clientY;dx=0;t0=performance.now();c.style.transition="none";try{c.setPointerCapture(e.pointerId)}catch(x){}});
+  c.addEventListener("pointermove",e=>{if(!drag)return;dx=e.clientX-sx;const dy=(e.clientY-sy)*.3;
+    c.style.transform=`translate(${dx}px,${dy}px) rotate(${dx/18}deg)`;c.style.setProperty("--sy",clamp(dx/110,0,1));c.style.setProperty("--sn",clamp(-dx/110,0,1))});
+  const end=()=>{if(!drag)return;drag=false;busy=Math.max(0,busy-1);
+    const v=Math.abs(dx)/Math.max(1,performance.now()-t0);
+    if(Math.abs(dx)>110||(v>.6&&Math.abs(dx)>40))fling(dx>0?1:-1);
+    else{c.style.transition="transform .45s var(--ease)";c.style.transform="";c.style.setProperty("--sy",0);c.style.setProperty("--sn",0)}};
+  c.addEventListener("pointerup",end);c.addEventListener("pointercancel",end);
+  return c;
+}
+function vote(m,v){
+  lastVote=m.id;write(`swipes/${me}/${m.id}`,v);
+  if(v===1&&getAt(`swipes/${tmeta().other}/${m.id}`)===1){toast("Egyezés! Mindketten kéritek: "+m.name,"🎉");confetti(22)}
+}
+document.addEventListener("keydown",e=>{
+  if(tab!=="menu"||menuMode!=="swipe"||document.querySelector(".sheet")||/INPUT|TEXTAREA|SELECT/.test((document.activeElement||{}).tagName||""))return;
+  const t=document.querySelector(".scard.top");if(!t)return;
+  if(e.key==="ArrowRight")t._fling(1);else if(e.key==="ArrowLeft")t._fling(-1);
+});
+function openPlaceSheet(m){
+  sheet((b,close)=>{
+    b.append(h("h2",{class:"t wrap"},m.emoji+" "+m.name+" – melyik napra?"));
+    for(let i=0;i<14;i++){const ds=fmt(addDays(new Date(),i)),e=getAt("menu/"+ds),em=e&&mealById(e.mealId);
+      b.append(h("div",{class:"row tap",onclick:()=>{write("menu/"+ds,{mealId:m.id});close();toast("Betéve: "+dayLabel(ds),"📅");buzz()}},
+        h("div",{class:"grow"},h("b",{},i===0?"Ma":i===1?"Holnap":dayLabel(ds)),h("div",{class:"mu sm ell"},em?"Felülírod: "+em.name:"Szabad")),h("span",{class:"mu"},ico(I.chev,18))))}
+  });
+}
+
+/* ---------- Statisztika ---------- */
+function viewStats(){
+  const all=txs(),list=all.filter(t=>String(t.date).slice(0,7)===statMonth);
+  const[y,mo]=statMonth.split("-").map(Number),total=list.reduce((s,t)=>s+(+t.total||0),0),prev=monthTotal(ymAdd(statMonth,-1));
+  const out=[topbar("Statisztika","Hová megy a pénz?")];
+  out.push(h("button",{class:"btn ghost block",style:"margin-bottom:12px",onclick:()=>openPurchase()},"🧾 Új vásárlás rögzítése"));
+  out.push(h("div",{class:"mnav"},h("button",{class:"iconbtn","aria-label":"Előző hónap",onclick:()=>{statMonth=ymAdd(statMonth,-1);animNext=true;render()}},ico(I.chevl)),
+    h("b",{},y+". "+MON[mo-1]),h("button",{class:"iconbtn","aria-label":"Következő hónap",onclick:()=>{statMonth=ymAdd(statMonth,1);animNext=true;render()}},ico(I.chev))));
+  if(!list.length){out.push(h("div",{class:"card"},emptyBox("📊","Ebben a hónapban nincs vásárlás",all.length?"Lapozz egy másik hónapra.":"Rögzíts egy blokkot, és itt jelenik meg a statisztika.")));return out}
+  const numEl=h("div",{class:"num",style:"font-size:34px;font-weight:800;letter-spacing:-.03em"},huf(total));num(numEl,total);
+  let delta=null;if(prev>0){const p=Math.round((total-prev)/prev*100);delta=h("span",{class:"delta "+(p>0?"up":"down")},(p>0?"▲ +":p<0?"▼ ":"● ")+p+"% az előző hónaphoz képest")}
+  out.push(h("div",{class:"card"},h("div",{class:"mu sm"},list.length+" vásárlás"),numEl,delta,spark([5,4,3,2,1,0].map(n=>monthTotal(ymAdd(statMonth,-n))))));
+  const cat={};list.forEach(t=>t.items.forEach(i=>{const k=catInfo(i.category)[0];cat[k]=(cat[k]||0)+(+i.quantity||0)*(+i.unitPrice||0)}));
+  const ce=Object.entries(cat).filter(e=>e[1]>0).sort((a,b)=>b[1]-a[1]),ct=ce.reduce((s,e)=>s+e[1],0);
+  if(ct>0)out.push(h("div",{class:"card"},h("h2",{},"Kategóriák"),h("div",{class:"donutw"},
+    donut(ce.map(([k,v])=>({v,color:catInfo(k)[2]})),ct,huf(ct)),
+    h("div",{class:"legend"},ce.map(([k,v])=>h("div",{class:"lg"},h("i",{class:"dot",style:"background:"+catInfo(k)[2]}),h("span",{class:"n ell"},catInfo(k)[1]+" "+k),h("b",{class:"sm"},Math.round(v/ct*100)+"%")))))));
+  const bars=(title,data,fmtK)=>{
+    const e=Object.entries(data).sort((a,b)=>b[1]-a[1]).slice(0,8),mx=Math.max(...e.map(x=>x[1]),1);
+    return h("div",{class:"card"},h("h2",{},title),e.map(([k,v])=>h("div",{class:"brow"},h("div",{class:"t"},h("span",{class:"ell"},fmtK(k)),h("b",{style:"flex:none"},huf(v))),h("div",{class:"bar"},h("i",{style:`width:${Math.max(3,v/mx*100)}%`})))));
+  };
+  const byP={},byS={},byI={};
+  list.forEach(t=>{byP[t.profile]=(byP[t.profile]||0)+(+t.total||0);const s=t.store||"Ismeretlen bolt";byS[s]=(byS[s]||0)+(+t.total||0);
+    t.items.forEach(i=>{const k=String(i.name||"?").trim();byI[k]=(byI[k]||0)+(+i.quantity||0)*(+i.unitPrice||0)})});
+  out.push(bars("Ki mennyit költött",byP,k=>PROFILES[k]?PROFILES[k].pet+" "+PROFILES[k].name:"Ismeretlen"));
+  out.push(bars("Boltok",byS,k=>k));
+  out.push(bars("Legdrágább tételek",byI,k=>k));
+  return out;
+}
+
+/* ---------- Új vásárlás ---------- */
+function fileToB64(file,max=1600){
+  return new Promise((res,rej)=>{
+    const img=new Image(),url=URL.createObjectURL(file);
+    img.onload=()=>{const r=Math.min(1,max/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=Math.round(img.width*r);c.height=Math.round(img.height*r);
+      c.getContext("2d").drawImage(img,0,0,c.width,c.height);res({b64:c.toDataURL("image/jpeg",.85).split(",")[1],url})};
+    img.onerror=()=>rej(new Error("A kép nem olvasható."));img.src=url;
+  });
+}
+const PROMPT=`Ez egy magyarországi vásárlási blokk (Lidl, Aldi, Spar vagy hasonló). Olvasd ki a tételeket. Válaszolj KIZÁRÓLAG egyetlen JSON objektummal, semmi mással:
+{"store":"bolt neve","purchasedAt":"YYYY-MM-DD","items":[{"name":"tétel neve olvashatóan","quantity":1,"unitPrice":0,"category":"..."}]}
+Az unitPrice forintban egy darab (egység) ára; ha a blokkon csak a sor végösszege áll, számold ki az egységárat. A category pontosan ezek egyike: ${CATS.map(c=>c[0]).join(", ")}. Ha a dátum nem olvasható, a purchasedAt legyen üres. Kedvezmény-sorokat és a végösszeget ne vedd fel tételként.`;
+async function scanReceipt(b64){
+  const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":cfg.apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+    body:JSON.stringify({model:cfg.model||"claude-haiku-5-5",max_tokens:2500,messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}},{type:"text",text:PROMPT}]}]})});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error((j.error&&j.error.message)||"Hiba a blokk olvasásakor ("+r.status+")");
+  const txt=((j.content||[]).find(c=>c.type==="text")||{}).text||"";
+  const m=txt.match(/\{[\s\S]*\}/);if(!m)throw new Error("A válasz nem volt értelmezhető. Próbáld újra egy élesebb fotóval.");
+  let d;try{d=JSON.parse(m[0])}catch(e){throw new Error("A válasz hibás formátumú. Próbáld újra.")}
+  if(!d||!Array.isArray(d.items))throw new Error("Nem találtam tételeket a blokkon.");
+  return{store:String(d.store||""),date:/^\d{4}-\d{2}-\d{2}$/.test(d.purchasedAt)?d.purchasedAt:fmt(new Date()),
+    items:d.items.map(i=>({name:String(i.name||"").trim(),quantity:Number(i.quantity)||1,unitPrice:Number(i.unitPrice)||0,category:CATS.some(c=>c[0]===i.category)?i.category:"egyéb"})).filter(i=>i.name)};
+}
+function openPurchase(){
+  sheet((body,close)=>{
+    let st="pick",draft=null,err="",preview="";
+    const cam=h("input",{type:"file",accept:"image/*",class:"hide",style:"display:none"}),gal=h("input",{type:"file",accept:"image/*",style:"display:none"});
+    cam.setAttribute("capture","environment");
+    const onFile=async f=>{
+      if(!f)return;st="scan";err="";draw();
+      try{const{b64,url}=await fileToB64(f);preview=url;draw();draft=await scanReceipt(b64);if(!draft.items.length)draft.items.push({name:"",quantity:1,unitPrice:0,category:"egyéb"});st="review"}
+      catch(e){st="pick";err=e.message||"Ismeretlen hiba."}
+      draw();
+    };
+    cam.addEventListener("change",()=>onFile(cam.files[0]));gal.addEventListener("change",()=>onFile(gal.files[0]));
+    const needKey=input=>()=>{if(!cfg.apiKey){close();setTimeout(()=>{toast("Add meg az API-kulcsot a beállításokban","🔑");openSettings()},360);return}input.value="";input.click()};
+    function draw(){
+      body.replaceChildren(cam,gal);
+      if(st==="pick"){
+        body.append(h("h2",{class:"t"},"Új vásárlás"),
+          h("button",{class:"btn block",style:"margin-bottom:10px;padding:18px",onclick:needKey(cam)},"📷 Blokk fotózása"),
+          h("button",{class:"btn ghost block",style:"margin-bottom:10px",onclick:needKey(gal)},"🖼️ Kép a galériából"),
+          h("button",{class:"btn ghost block",onclick:()=>{draft={store:"",date:fmt(new Date()),items:[{name:"",quantity:1,unitPrice:0,category:"egyéb"}]};st="review";draw()}},"✍️ Kézi felvitel"),
+          err?h("div",{class:"err"},err):null,
+          !cfg.apiKey?h("p",{class:"mu sm",style:"margin-top:12px"},"A blokk automatikus olvasásához az Anthropic API-kulcs kell (Beállítások). Kulcs nélkül is használható kézzel."):null);
+      }else if(st==="scan"){
+        body.append(h("h2",{class:"t"},"Blokk olvasása…"),preview?h("div",{class:"scan"},h("img",{src:preview,alt:"Blokk"})):h("div",{class:"empty"},h("span",{class:"e"},"🧾"),"Kép előkészítése…"),
+          h("p",{class:"mu sm",style:"text-align:center"},"Pár másodperc, és mehet az ellenőrzés."));
+      }else reviewUI();
+    }
+    function reviewUI(){
+      const store=h("input",{value:draft.store,placeholder:"Bolt (Lidl, Aldi, Spar…)",oninput:e=>draft.store=e.target.value}),
+        date=h("input",{type:"date",value:draft.date,oninput:e=>draft.date=e.target.value}),rows=h("div"),total=h("div",{class:"total"}),e2=h("div",{class:"err"});
+      const upd=()=>{total.textContent=huf(draft.items.reduce((s,i)=>s+(+i.quantity||0)*(+i.unitPrice||0),0))};
+      const drawRows=()=>{
+        rows.replaceChildren(...draft.items.map((it,idx)=>h("div",{class:"rrow"},
+          h("input",{value:it.name,placeholder:"Tétel neve",oninput:e=>it.name=e.target.value}),
+          h("div",{class:"l2"},
+            h("input",{type:"number",inputMode:"decimal",min:"0",step:"any",value:it.quantity,"aria-label":"Darab",oninput:e=>{it.quantity=e.target.value;upd()}}),
+            h("input",{type:"number",inputMode:"decimal",min:"0",step:"any",value:it.unitPrice,"aria-label":"Egységár",placeholder:"Ft/db",oninput:e=>{it.unitPrice=e.target.value;upd()}}),
+            h("select",{"aria-label":"Kategória",onchange:e=>it.category=e.target.value},CATS.map(c=>h("option",{value:c[0],selected:c[0]===it.category},c[1]+" "+c[0]))),
+            h("button",{class:"x","aria-label":"Tétel törlése",onclick:()=>{draft.items.splice(idx,1);drawRows();upd()}},ico(I.x,16)))))) ;
+      };
+      drawRows();upd();
+      body.append(h("h2",{class:"t"},"Ellenőrzés mentés előtt"),h("div",{class:"pair",style:"margin-bottom:10px"},store,date),rows,
+        h("button",{class:"btn ghost s",style:"margin-bottom:10px",onclick:()=>{draft.items.push({name:"",quantity:1,unitPrice:0,category:"egyéb"});drawRows()}},"+ Tétel"),total,e2,
+        h("div",{class:"pair"},h("button",{class:"btn ghost",onclick:()=>{st="pick";draft=null;draw()}},"Vissza"),
+          h("button",{class:"btn",onclick:()=>{
+            const items=draft.items.map(i=>({name:String(i.name).trim(),quantity:+i.quantity||1,unitPrice:+i.unitPrice||0,category:i.category})).filter(i=>i.name);
+            if(!items.length){e2.textContent="Legalább egy tételt adj meg.";return}
+            const sum=items.reduce((s,i)=>s+i.quantity*i.unitPrice,0),u={};
+            u["tx/"+uid()]={profile:me,store:String(draft.store||"").trim()||"Ismeretlen bolt",date:draft.date||fmt(new Date()),items,total:sum,created:Date.now()};
+            const names=new Set(items.map(i=>norm(i.name)));
+            items.forEach(i=>Object.assign(u,setInv(i.name,"ok")));
+            shop().forEach(s=>{if(names.has(norm(s.name)))u["shop/"+s.id]=null});
+            multi(u);close();toast("Mentve · "+huf(sum),"✅");confetti(18);buzz()}},"Mentés")));
+    }
+    draw();
+  });
+}
+
+/* ---------- Beállítások ---------- */
+function openSettings(){
+  sheet((b,close)=>{
+    const db=h("input",{value:cfg.dbUrl,placeholder:"https://projekt-default-rtdb.europe-west1.firebasedatabase.app",inputMode:"url",autocapitalize:"none",autocomplete:"off"}),
+      key=h("input",{type:"password",value:cfg.apiKey,placeholder:"sk-ant-…",autocapitalize:"none",autocomplete:"off"}),
+      model=h("input",{value:cfg.model,autocapitalize:"none"}),msg=h("div",{class:"mu sm",style:"margin:6px 2px"});
+    const imp=h("input",{type:"file",accept:"application/json",style:"display:none"});
+    imp.addEventListener("change",async()=>{
+      try{const d=JSON.parse(await imp.files[0].text());if(!d||typeof d!=="object")throw 0;if(!confirm("Felülírod az összes adatot az importálttal?"))return;
+        T=d;LSset("hh.cache",T);if(cfg.dbUrl)await fetch(cfg.dbUrl+"/.json",{method:"PUT",body:JSON.stringify(d)});close();render();toast("Importálva","📥")}
+      catch(e){msg.textContent="Érvénytelen mentésfájl."}});
+    b.append(h("h2",{class:"t"},"Beállítások"),
+      h("div",{class:"card",style:"background:rgba(255,255,255,.04)"},h("h2",{},"Szinkron (Firebase Realtime DB)"),
+        h("div",{class:"field"},db),h("p",{class:"mu sm"},"Hozz létre egy Realtime Database-t (teszt módban), és másold ide az URL-jét. Így Patrik és Dorina telefonján ugyanaz az adat látszik. Üresen hagyva az adat csak ezen az eszközön van.")),
+      h("div",{class:"card",style:"background:rgba(255,255,255,.04)"},h("h2",{},"Blokkolvasás (Claude)"),
+        h("div",{class:"field"},h("label",{},"ANTHROPIC API-KULCS"),key),h("div",{class:"field"},h("label",{},"MODELL"),model),
+        h("p",{class:"mu sm"},"A kulcs csak ezen az eszközön, a böngésző tárolójában van, és közvetlenül az Anthropic felé megy. Külön, költséglimites kulcsot használj.")),
+      msg,
+      h("button",{class:"btn block",style:"margin-bottom:10px",onclick:async()=>{
+        let u=db.value.trim().replace(/\/+$/,"");if(u&&!/^https:\/\/[^\s/]+$/.test(u)){msg.textContent="Az adatbázis-URL formátuma: https://…firebasedatabase.app";return}
+        if(u){msg.textContent="Kapcsolat tesztelése…";try{const r=await fetch(u+"/.json?shallow=true");if(!r.ok)throw new Error("HTTP "+r.status)}catch(e){msg.textContent="Nem érhető el ("+e.message+"). Ellenőrizd az URL-t és a szabályokat.";return}}
+        cfg={dbUrl:u,apiKey:key.value.trim(),model:model.value.trim()||"claude-haiku-5-5"};LSset("hh.cfg",cfg);connect();close();toast(u?"Szinkron bekapcsolva":"Mentve","✅")}},"Mentés"),
+      h("div",{class:"pair",style:"margin-bottom:10px"},
+        h("button",{class:"btn ghost",onclick:()=>{const a=h("a",{href:URL.createObjectURL(new Blob([JSON.stringify(T,null,2)],{type:"application/json"})),download:"haztartas-"+fmt(new Date())+".json"});a.click()}},"📤 Export"),
+        h("button",{class:"btn ghost",onclick:()=>imp.click()},"📥 Import")),imp,
+      h("button",{class:"btn danger block",onclick:()=>{close();me=null;LSset("hh.me",null);animNext=true;setTimeout(render,340)}},"Profilváltás"));
+  });
+}
+
+/* ---------- ételfotók: magyar Wikipédia (kulcs nélkül, jogtiszta) ---------- */
+const stem=w=>norm(w).replace(/[^a-záéíóöőúüű]/g,"").slice(0,5);
+const wordsOf=t=>norm(t).split(/\s+/).map(stem).filter(x=>x.length>=5);
+async function findImg(name){
+  const q=encodeURIComponent(name);
+  const r=await fetch(`https://hu.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrsearch=${q}&gsrlimit=4&prop=pageimages&piprop=thumbnail&pithumbsize=640`);
+  if(!r.ok)throw new Error("HTTP "+r.status);
+  const j=await r.json(),pages=Object.values((j.query&&j.query.pages)||{}).sort((a,b)=>(a.index||99)-(b.index||99)),mine=wordsOf(name);
+  for(const p of pages){
+    const src=p.thumbnail&&p.thumbnail.source;if(!src||!src.startsWith("https://upload.wikimedia.org/"))continue;
+    const tw=wordsOf(p.title||"");if(mine.some(w=>tw.includes(w)))return src; // csak ha a cikk címe egyezik az étel nevével
+  }
+  return "";
+}
+let imgBusy=false;
+async function fetchImgs(){
+  if(imgBusy||!navigator.onLine)return;imgBusy=true;
+  try{
+    const todo=allMeals().filter(m=>(T.img||{})[m.id]===undefined);
+    for(let i=0;i<todo.length;i+=3){
+      const batch=todo.slice(i,i+3),u={};
+      await Promise.all(batch.map(async m=>{try{u["img/"+m.id]=await findImg(m.name)}catch(e){}}));
+      if(Object.keys(u).length)multi(u);
+    }
+  }finally{imgBusy=false}
+}
+
+/* ---------- indulás ---------- */
+render();
+connect();
+if(cfg.dbUrl)flush();
+setTimeout(()=>{if(me)fetchImgs()},3500);
+</script>
+</body>
+</html>
