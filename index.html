@@ -826,11 +826,11 @@ function parseReceipt(j){
         category:a&&a.category?a.category:(CATS.some(c=>c[0]===i.category)?i.category:"egyéb")}}).filter(i=>i.name)};
 }
 const recDiff=r=>r.receiptTotal>0?Math.abs(Math.round(r.items.reduce((a,i)=>a+i.quantity*i.unitPrice,0)-r.receiptTotal)):0;
-/* Beolvasás + önellenőrzés: ha a tételek összege nem egyezik a végösszeggel, a modellt visszaküldjük javítani (max. 2 kör, erősebb modellel). */
+/* Beolvasás + önellenőrzés: ha a tételek összege nem egyezik a végösszeggel, a modellt visszaküldjük javítani (max. 2 kör, ugyanazzal a modellel). */
 async function scanReceipt(b64,model){
   const msgs=[{role:"user",content:[{type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}},{type:"text",text:buildPrompt()}]}];
-  let best=null,mdl=model||(cfg.model&&!/haiku/i.test(cfg.model)?cfg.model:"claude-sonnet-5-5");
-  for(let round=0;round<3;round++){
+  let best=null,mdl=model||cfg.model||"claude-haiku-5-5";
+  for(let round=0;round<4;round++){
     const j=await apiCall(msgs,mdl);
     let r;try{r=parseReceipt(j)}catch(e){if(best)break;throw e}
     const diff=recDiff(r);
@@ -839,7 +839,6 @@ async function scanReceipt(b64,model){
     const tu=(j.content||[]).find(c=>c.type==="tool_use");if(!tu)break;
     const sum=Math.round(r.items.reduce((a,i)=>a+i.quantity*i.unitPrice,0));
     const rows=r.items.map((i,n)=>`${n+1}. ${i.raw||i.name} | ${i.quantity} × ${i.unitPrice} = ${Math.round(i.quantity*i.unitPrice)}`).join("\n");
-    mdl="claude-opus-5-5";
     msgs.push({role:"assistant",content:j.content},{role:"user",content:[{type:"tool_result",tool_use_id:tu.id,is_error:true,content:`Hibás: a tételek összege ${sum} Ft, a blokk végösszege ${r.receiptTotal} Ft (eltérés ${sum-r.receiptTotal} Ft). Az eddigi tételek:\n${rows}\nNézd meg újra a fotót sorról sorra. Gyakori okok: kihagyott vagy kétszer felvett tétel, elcsúszott név–érték párosítás, rosszul olvasott szám, mennyiség-sor külön tételként, kedvezmény vagy betétdíj figyelmen kívül hagyva. Hívd meg újra a "rogzit" eszközt a javított, teljes listával.`}]});
   }
   return best.r;
@@ -851,7 +850,7 @@ function openPurchase(){
     cam.setAttribute("capture","environment");
     const onFile=async f=>{
       if(!f)return;st="scan";err="";draw();
-      try{const{b64,url}=await fileToB64(f);preview=url;draw();try{draft=await scanReceipt(b64)}catch(e1){logEvent("scan_retry",{msg:String(e1.message).slice(0,120)});draft=await scanReceipt(b64,"claude-sonnet-5-5")}
+      try{const{b64,url}=await fileToB64(f);preview=url;draw();try{draft=await scanReceipt(b64)}catch(e1){logEvent("scan_retry",{msg:String(e1.message).slice(0,120)});draft=await scanReceipt(b64)}
         if(draft.dateFound===false&&f.lastModified&&Date.now()-f.lastModified<4e10)draft.date=fmt(new Date(f.lastModified));if(!draft.items.length)draft.items.push({name:"",quantity:1,unitPrice:0,category:"egyéb"});st="review"}
       catch(e){st="pick";err=e.message||"Ismeretlen hiba.";logEvent("scan_error",{msg:String(err).slice(0,160)})}
       draw();
