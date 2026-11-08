@@ -791,41 +791,58 @@ const aliasKey=raw=>keyOf(raw).slice(0,100);
 function buildPrompt(){
   const al=Object.entries(T.alias||{}).slice(-60).map(([k,v])=>`"${v.raw||k}" → "${v.name}"`).join("; ");
   const known=[...new Set(inv().map(i=>i.name))].slice(0,80).join(", ");
-  return `Ez egy magyarországi vásárlási blokk (Tesco, Lidl, Aldi, Spar vagy hasonló). Olvasd ki a tételeket. Válaszolj KIZÁRÓLAG egyetlen JSON objektummal, semmi mással:
-{"store":"bolt neve (pl. Tesco)","purchasedAt":"YYYY-MM-DD","totalAmount":0,"items":[{"raw":"a sor szövege a blokkon, pontosan","name":"kibontott, olvasható terméknév","guess":false,"quantity":1,"unitPrice":0,"category":"..."}]}
-Szabályok:
-- A blokkok gyakran rövidítenek vagy levágják a terméknevet. A "name" a feloldott, értelmes magyar terméknév (pl. "TEJ 2,8% 1L" → "Tej 2,8% 1 l"). A "TS" Tesco saját márkát jelent. Ha a feloldás nem biztos, vagyis a nevet a rövidítésből találgatod, a "guess" legyen true, különben false.
-- Egyes blokkokon (pl. Tesco) a mennyiség és egységár sor ("2,000 db * 941,00 Ft /db") a termék neve ELŐTT áll, és a közvetlenül utána következő névsorhoz tartozik; a névsor végén a sor végösszege áll. A mennyiség lehet tizedes (kg-os áru).
-- Lidl-blokkon a termék neve áll elöl, a következő sorban pedig a "6 DB * 99 Ft/DB" mennyiség-egységár sor és a sor végösszege (a végösszeg a jobb szélen). A "Visszav.díj" (betétdíj) sorokat NE vedd fel külön tételként: add hozzá a közvetlenül előtte álló termék egységárához és sorösszegéhez (pl. 6 db * 99 Ft + 6 db * 50 Ft → mennyiség 6, unitPrice 149), és a "name" végére írd oda: "(+50 Ft betétdíj)". Így a tételek összege egyezik a végösszeggel. A fotó lehet ferde, árnyékos vagy a blokk csak a kép egy kis részét foglalja el: a blokk szövegét akkor is olvasd ki.
-- Auchan-blokkon (fejléc: "ÁFA MEGNEVEZÉS / MENNYISÉG * EGYSÉGÁR / ÉRTÉK") a termék neve áll elöl, a "2 db * 619 Ft/db" sor a név UTÁN következik, és a hozzá tartozó sorösszeg (1 238) a jobb oldali ÉRTÉK oszlopban van. A nevek és az értékek sorrendje 1:1 egyezik; a fotó görbülete miatt az érték vizuálisan egy sorral följebb vagy lejjebb látszhat, ezért az értékeket sorrendben rendeld a nevekhez, és ellenőrizd az összeggel. A "TÉTELEK SZÁMA", a kártyaadatok és a lábléc nem tétel. Az ezreseket szóköz választja el ("1 238" = 1238).
-- Először a "valueColumn" mezőbe írd ki a jobb oldali értékoszlop összes számát fentről lefelé, az ÖSSZESEN nélkül (egy szám = egy tétel sorösszege; a "2 db * 619 Ft/db" sor értéke a fölötte álló tételé, nem külön szám). Aztán az items tömb pontosan ugyanannyi elemből álljon, ugyanabban a sorrendben, és a lineTotal rendre a valueColumn megfelelő száma legyen. A mennyiség-sorok nem külön tételek.
-- Mielőtt válaszolsz, add össze a tételek sorösszegét: egyeznie kell az ÖSSZESEN értékkel. Ha nem, nézd át újra az árakat és a darabszámokat.
-- A "lineTotal" a tétel sorának végösszege forintban, ahogy a jobb oldali oszlopban áll (kedvezménnyel és betétdíjjal együtt). A "quantity" a darabszám (2 db * 619 Ft → quantity 2, lineTotal 1238). A lineTotal értékek összege legyen az ÖSSZESEN.
-- A dátumot keresd a blokk alján is (kártyaadatok mellett, pl. "26/10/26 19:35" = 2026-10-26, vagy "2026.11.03. 20:29"); az évszám 2026 körüli.
-- Az unitPrice forintban egy darab (egység) ára. Ha csak a sor végösszege áll, számold ki az egységárat.
-- Kedvezmény-sort (negatív összeg, pl. "CC …" Clubcard-kedvezmény, "KEDVEZMÉNY", "AKCIÓ") NE vegyél fel külön tételként. Vond le a hozzá tartozó tétel sorösszegéből, és az egységárat a kedvezményes sorösszeg / mennyiség alapján add meg. Így a tételek összege egyezzen a blokk végösszegével.
-- A "totalAmount" a blokk végösszege ("ÖSSZESEN"), forintban. A részösszeget, a fizetési módot és az egyéb adatokat ne vedd fel tételként.
-- A dátum lehet "2026.11.06." vagy "26/11/06" alakú is; purchasedAt-ben YYYY-MM-DD legyen. Ha nem olvasható, legyen üres.${al?`\n- Korábban a felhasználó ezeket javította, ugyanilyen blokk-szöveghez használd ugyanezt: ${al}.`:""}${known?`\n- Ismert termékek a háztartásban: ${known}. Ha egy sor nagy valószínűséggel ezek egyikére utal, használd pontosan ezt a nevet.`:""}
+  return `Ez egy magyarországi vásárlási blokk fotója. A bolt bármelyik lehet, és minden bolt másként nyomtat, ezért ne boltra jellemző mintát feltételezz, hanem a blokk szerkezetét olvasd le. A kiolvasott adatokat a "rogzit" eszközzel add vissza.
+Módszer:
+1. Nézd meg a szerkezetet: hol áll a terméknév; a "2 db * 619 Ft" jellegű mennyiség-egységár sor a név előtt vagy után áll-e; melyik oszlop a sorösszeg (általában a jobb szél). Ezt a blokk egészén következetesen alkalmazd. A fotó lehet ferde, görbült, árnyékos: az érték vizuálisan egy sorral följebb vagy lejjebb látszhat a névhez képest, ilyenkor a sorrend dönt (az n-edik név az n-edik értékhez tartozik).
+2. A "valueColumn" mezőbe először írd ki a sorösszeg-oszlop összes számát fentről lefelé (az ÖSSZESEN/végösszeg nélkül; az ezreseket szóköz választhatja el: "1 238" = 1238; a negatív kedvezmény is külön szám).
+3. Az "items" tömb elemei ezekhez igazodjanak sorrendben: egy elem = egy sorösszeg. A mennyiség-sor nem külön tétel, a hozzá tartozó érték a hozzá tartozó terméké. A "lineTotal" a tétel sorösszege forintban, a "quantity" a darabszám (tizedes is lehet, kg-nál).
+4. Kedvezmény-sort (negatív összeg) vagy betétdíj-sort ("Visszav.díj", palackdíj) NE vegyél fel külön tételként: vond le / add hozzá a hozzá tartozó termék sorösszegéhez, és betétdíjnál a név végére írd: "(+50 Ft betétdíj)".
+5. A "totalAmount" a blokk végösszege (ÖSSZESEN/FIZETENDŐ). A részösszeg, fizetési mód, kártyaadat, "tételek száma" és lábléc nem tétel. A lineTotal értékek összege legyen a végösszeg; ellenőrizd, és ha nem egyezik, nézd át újra a képet.
+6. A dátum a blokk tetején VAGY alján is lehet (pl. "2026.11.03.", "26/10/26 19:35"); purchasedAt YYYY-MM-DD, az évszám 2026 körüli. Ha nem olvasható, legyen üres.
+7. A blokk rövidíti a neveket. A "name" a feloldott, értelmes magyar terméknév (pl. "TEJ 2,8% 1L" → "Tej 2,8% 1 l"; "TS" = Tesco saját márka). Ha a feloldás nem biztos (találgatod), a "guess" legyen true. A "raw" a sor szövege a blokkon, pontosan.${al?`\n8. Korábban a felhasználó ezeket javította, ugyanilyen blokk-szöveghez használd ugyanezt: ${al}.`:""}${known?`\n9. Ismert termékek a háztartásban: ${known}. Ha egy sor nagy valószínűséggel ezek egyikére utal, használd pontosan ezt a nevet.`:""}
 A category pontosan ezek egyike: ${CATS.map(c=>c[0]).join(", ")}.`;
 }
-async function scanReceipt(b64,model){
+const RSCHEMA={type:"object",properties:{valueColumn:{type:"array",items:{type:"number"}},store:{type:"string"},purchasedAt:{type:"string"},totalAmount:{type:"number"},items:{type:"array",items:{type:"object",properties:{raw:{type:"string"},name:{type:"string"},guess:{type:"boolean"},quantity:{type:"number"},lineTotal:{type:"number"},category:{type:"string"}},required:["name","quantity","lineTotal","category"]}}},required:["items"]};
+async function apiCall(messages,model){
   const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":cfg.apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-    body:JSON.stringify({model:model||cfg.model||"claude-haiku-5-5",max_tokens:4000,tools:[{name:"rogzit",description:"A blokk kiolvasott adatai",input_schema:{type:"object",properties:{valueColumn:{type:"array",items:{type:"number"}},store:{type:"string"},purchasedAt:{type:"string"},totalAmount:{type:"number"},items:{type:"array",items:{type:"object",properties:{raw:{type:"string"},name:{type:"string"},guess:{type:"boolean"},quantity:{type:"number"},unitPrice:{type:"number"},lineTotal:{type:"number"},category:{type:"string"}},required:["name","quantity","lineTotal","category"]}}},required:["items"]}}],tool_choice:{type:"tool",name:"rogzit"},messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}},{type:"text",text:buildPrompt()}]}]})});
+    body:JSON.stringify({model:model||cfg.model||"claude-haiku-5-5",max_tokens:4000,tools:[{name:"rogzit",description:"A blokk kiolvasott adatai",input_schema:RSCHEMA}],tool_choice:{type:"tool",name:"rogzit"},messages})});
   const j=await r.json().catch(()=>({}));
   if(!r.ok)throw new Error((j.error&&j.error.message)||"Hiba a blokk olvasásakor ("+r.status+")");
+  return j;
+}
+function parseReceipt(j){
   let d=((j.content||[]).find(c=>c.type==="tool_use")||{}).input;
   if(!d){const txt=((j.content||[]).find(c=>c.type==="text")||{}).text||"";
     const m=txt.match(/\{[\s\S]*\}/);if(!m)throw new Error("A válasz nem volt értelmezhető. Próbáld újra egy élesebb fotóval.");
     try{d=JSON.parse(m[0].replace(/,\s*([}\]])/g,"$1"))}catch(e){throw new Error("A válasz hibás formátumú. Próbáld újra.")}}
   if(typeof d==="string"){try{d=JSON.parse(d)}catch(e){throw new Error("A válasz hibás formátumú. Próbáld újra.")}}
-  if(d&&Array.isArray(d.items)&&Array.isArray(d.valueColumn)){const vc=d.valueColumn.map(Number).filter(x=>x);
-    if(vc.length===d.items.length&&Math.abs(vc.reduce((a,b)=>a+b,0)-Number(d.totalAmount))<=1)d.items.forEach((it,i)=>{it.lineTotal=vc[i]})}
   if(!d||!Array.isArray(d.items))throw new Error("Nem találtam tételeket a blokkon.");
+  if(Array.isArray(d.valueColumn)){const vc=d.valueColumn.map(Number).filter(x=>x);
+    if(vc.length===d.items.length&&Math.abs(vc.reduce((a,b)=>a+b,0)-Number(d.totalAmount))<=1)d.items.forEach((it,i)=>{it.lineTotal=vc[i]})}
   return{receiptTotal:Number(d.totalAmount)||0,store:String(d.store||""),dateFound:/^\d{4}-\d{2}-\d{2}$/.test(d.purchasedAt),date:/^\d{4}-\d{2}-\d{2}$/.test(d.purchasedAt)?d.purchasedAt:fmt(new Date()),
     items:d.items.map(i=>{
-      const raw=String(i.raw||"").trim(),a=raw&&(T.alias||{})[aliasKey(raw)];
-      return{raw,name:a?a.name:String(i.name||raw).trim(),guess:a?false:!!i.guess,quantity:Number(i.quantity)||1,unitPrice:(Number(i.lineTotal)||0)?Math.round(Number(i.lineTotal)/(Number(i.quantity)||1)*100)/100:(Number(i.unitPrice)||0),
+      const raw=String(i.raw||"").trim(),a=raw&&(T.alias||{})[aliasKey(raw)],q=Number(i.quantity)||1;
+      return{raw,name:a?a.name:String(i.name||raw).trim(),guess:a?false:!!i.guess,quantity:q,unitPrice:(Number(i.lineTotal)||0)?Math.round(Number(i.lineTotal)/q*100)/100:(Number(i.unitPrice)||0),
         category:a&&a.category?a.category:(CATS.some(c=>c[0]===i.category)?i.category:"egyéb")}}).filter(i=>i.name)};
+}
+const recDiff=r=>r.receiptTotal>0?Math.abs(Math.round(r.items.reduce((a,i)=>a+i.quantity*i.unitPrice,0)-r.receiptTotal)):0;
+/* Beolvasás + önellenőrzés: ha a tételek összege nem egyezik a végösszeggel, a modellt visszaküldjük javítani (max. 2 kör, erősebb modellel). */
+async function scanReceipt(b64,model){
+  const msgs=[{role:"user",content:[{type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}},{type:"text",text:buildPrompt()}]}];
+  let best=null,mdl=model;
+  for(let round=0;round<3;round++){
+    const j=await apiCall(msgs,mdl);
+    let r;try{r=parseReceipt(j)}catch(e){if(best)break;throw e}
+    const diff=recDiff(r);
+    if(!best||diff<best.diff)best={r,diff};
+    if(diff<=1||!r.receiptTotal)break;
+    const tu=(j.content||[]).find(c=>c.type==="tool_use");if(!tu)break;
+    const sum=Math.round(r.items.reduce((a,i)=>a+i.quantity*i.unitPrice,0));
+    const rows=r.items.map((i,n)=>`${n+1}. ${i.raw||i.name} | ${i.quantity} × ${i.unitPrice} = ${Math.round(i.quantity*i.unitPrice)}`).join("\n");
+    mdl="claude-sonnet-5-5";
+    msgs.push({role:"assistant",content:j.content},{role:"user",content:[{type:"tool_result",tool_use_id:tu.id,is_error:true,content:`Hibás: a tételek összege ${sum} Ft, a blokk végösszege ${r.receiptTotal} Ft (eltérés ${sum-r.receiptTotal} Ft). Az eddigi tételek:\n${rows}\nNézd meg újra a fotót sorról sorra. Gyakori okok: kihagyott vagy kétszer felvett tétel, elcsúszott név–érték párosítás, rosszul olvasott szám, mennyiség-sor külön tételként, kedvezmény vagy betétdíj figyelmen kívül hagyva. Hívd meg újra a "rogzit" eszközt a javított, teljes listával.`}]});
+  }
+  return best.r;
 }
 function openPurchase(){
   sheet((body,close)=>{
@@ -834,9 +851,8 @@ function openPurchase(){
     cam.setAttribute("capture","environment");
     const onFile=async f=>{
       if(!f)return;st="scan";err="";draw();
-      try{const{b64,url}=await fileToB64(f);preview=url;draw();const dif=d=>d.receiptTotal>0?Math.abs(Math.round(d.items.reduce((a,i)=>a+i.quantity*i.unitPrice,0)-d.receiptTotal)):0;
-        try{draft=await scanReceipt(b64)}catch(e1){logEvent("scan_retry",{msg:String(e1.message).slice(0,120)});draft=await scanReceipt(b64,"claude-sonnet-5-5")}
-        if(dif(draft)>1){try{const d2=await scanReceipt(b64,"claude-sonnet-5-5");if(dif(d2)<dif(draft))draft=d2}catch(e2){}}if(draft.dateFound===false&&f.lastModified&&Date.now()-f.lastModified<4e10)draft.date=fmt(new Date(f.lastModified));if(!draft.items.length)draft.items.push({name:"",quantity:1,unitPrice:0,category:"egyéb"});st="review"}
+      try{const{b64,url}=await fileToB64(f);preview=url;draw();try{draft=await scanReceipt(b64)}catch(e1){logEvent("scan_retry",{msg:String(e1.message).slice(0,120)});draft=await scanReceipt(b64,"claude-sonnet-5-5")}
+        if(draft.dateFound===false&&f.lastModified&&Date.now()-f.lastModified<4e10)draft.date=fmt(new Date(f.lastModified));if(!draft.items.length)draft.items.push({name:"",quantity:1,unitPrice:0,category:"egyéb"});st="review"}
       catch(e){st="pick";err=e.message||"Ismeretlen hiba.";logEvent("scan_error",{msg:String(err).slice(0,160)})}
       draw();
     };
