@@ -794,7 +794,7 @@ function buildPrompt(){
   return `Ez egy magyarországi vásárlási blokk fotója. A bolt bármelyik lehet, és minden bolt másként nyomtat, ezért ne boltra jellemző mintát feltételezz, hanem a blokk szerkezetét olvasd le. A kiolvasott adatokat a "rogzit" eszközzel add vissza.
 Módszer:
 1. Nézd meg a szerkezetet: hol áll a terméknév; a "2 db * 619 Ft" jellegű mennyiség-egységár sor a név előtt vagy után áll-e; melyik oszlop a sorösszeg (általában a jobb szél). Ezt a blokk egészén következetesen alkalmazd. A fotó lehet ferde, görbült, árnyékos: az érték vizuálisan egy sorral följebb vagy lejjebb látszhat a névhez képest, ilyenkor a sorrend dönt (az n-edik név az n-edik értékhez tartozik).
-2. A "valueColumn" mezőbe először írd ki a sorösszeg-oszlop összes számát fentről lefelé (az ÖSSZESEN/végösszeg nélkül; az ezreseket szóköz választhatja el: "1 238" = 1238; a negatív kedvezmény is külön szám).
+2. A "valueColumn" mezőbe először írd ki a sorösszeg-oszlop összes számát fentről lefelé (az ÖSSZESEN/végösszeg nélkül; két egymás utáni azonos szám két külön tétel, egyiket se hagyd ki, és az utolsó sort se; az ezreseket szóköz választhatja el: "1 238" = 1238; a negatív kedvezmény is külön szám).
 3. Az "items" tömb elemei ezekhez igazodjanak sorrendben: egy elem = egy sorösszeg. A mennyiség-sor nem külön tétel, a hozzá tartozó érték a hozzá tartozó terméké. A "lineTotal" a tétel sorösszege forintban, a "quantity" a darabszám (tizedes is lehet, kg-nál).
 4. Kedvezmény-sort (negatív összeg) vagy betétdíj-sort ("Visszav.díj", palackdíj) NE vegyél fel külön tételként: vond le / add hozzá a hozzá tartozó termék sorösszegéhez, és betétdíjnál a név végére írd: "(+50 Ft betétdíj)".
 5. A "totalAmount" a blokk végösszege (ÖSSZESEN/FIZETENDŐ). A részösszeg, fizetési mód, kártyaadat, "tételek száma" és lábléc nem tétel. A lineTotal értékek összege legyen a végösszeg; ellenőrizd, és ha nem egyezik, nézd át újra a képet.
@@ -829,7 +829,7 @@ const recDiff=r=>r.receiptTotal>0?Math.abs(Math.round(r.items.reduce((a,i)=>a+i.
 /* Beolvasás + önellenőrzés: ha a tételek összege nem egyezik a végösszeggel, a modellt visszaküldjük javítani (max. 2 kör, erősebb modellel). */
 async function scanReceipt(b64,model){
   const msgs=[{role:"user",content:[{type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}},{type:"text",text:buildPrompt()}]}];
-  let best=null,mdl=model;
+  let best=null,mdl=model||(cfg.model&&!/haiku/i.test(cfg.model)?cfg.model:"claude-sonnet-5-5");
   for(let round=0;round<3;round++){
     const j=await apiCall(msgs,mdl);
     let r;try{r=parseReceipt(j)}catch(e){if(best)break;throw e}
@@ -839,7 +839,7 @@ async function scanReceipt(b64,model){
     const tu=(j.content||[]).find(c=>c.type==="tool_use");if(!tu)break;
     const sum=Math.round(r.items.reduce((a,i)=>a+i.quantity*i.unitPrice,0));
     const rows=r.items.map((i,n)=>`${n+1}. ${i.raw||i.name} | ${i.quantity} × ${i.unitPrice} = ${Math.round(i.quantity*i.unitPrice)}`).join("\n");
-    mdl="claude-sonnet-5-5";
+    mdl="claude-opus-5-5";
     msgs.push({role:"assistant",content:j.content},{role:"user",content:[{type:"tool_result",tool_use_id:tu.id,is_error:true,content:`Hibás: a tételek összege ${sum} Ft, a blokk végösszege ${r.receiptTotal} Ft (eltérés ${sum-r.receiptTotal} Ft). Az eddigi tételek:\n${rows}\nNézd meg újra a fotót sorról sorra. Gyakori okok: kihagyott vagy kétszer felvett tétel, elcsúszott név–érték párosítás, rosszul olvasott szám, mennyiség-sor külön tételként, kedvezmény vagy betétdíj figyelmen kívül hagyva. Hívd meg újra a "rogzit" eszközt a javított, teljes listával.`}]});
   }
   return best.r;
