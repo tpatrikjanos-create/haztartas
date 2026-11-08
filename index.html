@@ -385,6 +385,10 @@ const inv=()=>Object.entries(T.inv||{}).map(([k,v])=>({k,...v}));
 const shop=()=>Object.entries(T.shop||{}).map(([id,v])=>({id,...v}));
 const allMeals=()=>[...SEED,...Object.entries(T.meals||{}).map(([id,m])=>({id,name:m.name,emoji:m.emoji||"🍽️",ingredients:Array.isArray(m.ingredients)?m.ingredients:Object.values(m.ingredients||{})}))];
 const mealById=id=>allMeals().find(m=>m.id===id);
+/* laza névegyezés: a rövidebb név minden szava megvan a másikban (egyezően, vagy 5+ betűs szavaknál közös 5 betűs tővel) */
+const toks=x=>String(x||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").split(/[^a-z]+/).filter(t=>t.length>=3);
+function fz(a,b){let A=toks(a),B=toks(b);if(!A.length||!B.length)return false;if(A.length>B.length)[A,B]=[B,A];
+  return A.every(t=>B.some(u=>u===t||(t.length>=5&&u.length>=5&&t.slice(0,5)===u.slice(0,5))))}
 const shopHas=n=>shop().some(s=>norm(s.name)===norm(n));
 function have(ing){const g=norm(ing);if(g.length<3)return false;return inv().some(i=>{if(i.status!=="ok")return false;const n=norm(i.name);return n.includes(g)||g.includes(n)&&n.length>=3})}
 function setInv(name,status,extra){const n=String(name).trim();if(!n)return{};const k=keyOf(n);return{["inv/"+k]:{name:n,status,updatedAt:Date.now()},...(extra||{})}}
@@ -614,7 +618,7 @@ function setStatus(i,st){
 /* ---------- Bevásárlólista ---------- */
 function viewList(){
   const add=h("input",{placeholder:"Mit kell venni?",enterKeyHint:"done"});
-  const doAdd=n=>{n=(n||add.value).trim();if(!n)return;if(shopHas(n)){toast("Már a listán van","👀");return}multi(addShopU(n));add.value="";buzz()};
+  const doAdd=n=>{n=(n||add.value).trim();if(!n)return;if(shopHas(n)){toast("Már a listán van","👀");return}const u=addShopU(n),m=inv().filter(i=>fz(i.name,n));m.forEach(i=>{u["inv/"+i.k]=null});multi(u);add.value="";buzz();if(m.length)toast(m.map(i=>i.name).slice(0,2).join(", ")+" törölve a leltárból","🗑️")};
   add.addEventListener("keydown",e=>{if(e.key==="Enter")doAdd()});
   const items=shop().sort((a,b)=>(a.at||0)-(b.at||0));
   const quick=tmeta().quick.filter(n=>!shopHas(n));
@@ -954,8 +958,8 @@ function openPurchase(){
             const fx=draft.items.filter(i=>i.edited&&i.raw&&String(i.name).trim()&&norm(i.raw)!==norm(i.name)).map(i=>[i.raw,String(i.name).trim()]);if(fx.length)logU(u,"name_fix",{pairs:fx.slice(0,15)});
             trimLog(u);
             items.forEach(i=>Object.assign(u,setInv(i.name,"ok")));
-            shop().forEach(s=>{if(names.has(norm(s.name)))u["shop/"+s.id]=null});
-            multi(u);close();toast("Mentve · "+huf(fin),"✅");confetti(18);buzz()}},"Mentés")));
+            let gone=0;shop().forEach(s=>{if(items.some(i=>fz(i.name,s.name))){u["shop/"+s.id]=null;gone++}});
+            multi(u);close();toast("Mentve · "+huf(fin)+(gone?" · "+gone+" tétel lekerült a listáról":""),"✅");confetti(18);buzz()}},"Mentés")));
     }
     draw();
   });
