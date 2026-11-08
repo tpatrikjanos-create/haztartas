@@ -830,7 +830,7 @@ const recDiff=r=>r.receiptTotal>0?Math.abs(Math.round(r.items.reduce((a,i)=>a+i.
 async function scanReceipt(b64,model){
   const msgs=[{role:"user",content:[{type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}},{type:"text",text:buildPrompt()}]}];
   let best=null,mdl=model||cfg.model||"claude-haiku-5-5";
-  for(let round=0;round<4;round++){
+  for(let round=0;round<3;round++){
     const j=await apiCall(msgs,mdl);
     let r;try{r=parseReceipt(j)}catch(e){if(best)break;throw e}
     const diff=recDiff(r);
@@ -873,13 +873,13 @@ function openPurchase(){
     }
     function reviewUI(){
       const store=h("input",{value:draft.store,placeholder:"Bolt (Lidl, Aldi, Spar…)",oninput:e=>draft.store=e.target.value}),
-        date=h("input",{type:"date",value:draft.date,oninput:e=>draft.date=e.target.value}),rows=h("div"),total=h("div",{class:"total"}),e2=h("div",{class:"err"});
+        date=h("input",{type:"date",value:draft.date,oninput:e=>draft.date=e.target.value}),rows=h("div"),e2=h("div",{class:"err"}),totIn=h("input",{type:"number",inputMode:"numeric",min:"0",step:"1",value:draft.receiptTotal||"",placeholder:"Végösszeg",style:"font-size:24px;font-weight:800",oninput:e=>{draft.receiptTotal=+e.target.value||0;upd()}}),total=h("div",{style:"margin:6px 0 10px"},h("div",{class:"sm mu",style:"margin-bottom:4px"},"Végösszeg (Ft) · ez kerül mentésre"),totIn);
       const chk=h("div",{class:"sm",style:"margin:-6px 0 10px"});
-      const upd=()=>{const sum=draft.items.reduce((s,i)=>s+(+i.quantity||0)*(+i.unitPrice||0),0);total.textContent=huf(sum);
+      const upd=()=>{const sum=draft.items.reduce((s,i)=>s+(+i.quantity||0)*(+i.unitPrice||0),0);
         const rt=draft.receiptTotal||0;
         if(rt>0){const diff=Math.round(sum-rt);chk.style.color=Math.abs(diff)<=1?"var(--ok)":"var(--low)";
-          chk.textContent=Math.abs(diff)<=1?"✓ Egyezik a blokk végösszegével ("+huf(rt)+")":"⚠ A blokk végösszege "+huf(rt)+", a tételeké "+huf(sum)+" (különbség: "+huf(Math.abs(diff))+"). Ellenőrizd a darabszámokat és árakat."}
-        else chk.textContent=""};
+          chk.textContent=Math.abs(diff)<=1?"✓ Egyezik a blokk végösszegével ("+huf(rt)+")":"⚠ A blokk végösszege "+huf(rt)+", a tételeké "+huf(sum)+" (különbség: "+huf(Math.abs(diff))+"). A végösszeg kerül mentésre, az egyes árak csak tájékoztatók."}
+        else{chk.style.color="";chk.textContent="Végösszeg nélkül a tételek összege kerül mentésre: "+huf(sum)}};
       const drawRows=()=>{
         rows.replaceChildren(...draft.items.map((it,idx)=>{const rawEl=it.raw?h("div",{class:"raw"+(it.guess?" guess":"")},(it.guess?"❓ Találgatás, ellenőrizd · ":"")+"blokkon: "+it.raw):null;
           return h("div",{class:"rrow"+(it.guess?" guess":"")},
@@ -898,7 +898,8 @@ function openPurchase(){
             const items=draft.items.map(i=>({name:String(i.name).trim(),raw:i.raw||"",quantity:+i.quantity||1,unitPrice:+i.unitPrice||0,category:i.category})).filter(i=>i.name);
             if(!items.length){e2.textContent="Legalább egy tételt adj meg.";return}
             const sum=items.reduce((s,i)=>s+i.quantity*i.unitPrice,0),u={};
-            u["tx/"+uid()]={profile:me,store:String(draft.store||"").trim()||"Ismeretlen bolt",date:draft.date||fmt(new Date()),items,total:sum,created:Date.now()};
+            const fin=(+draft.receiptTotal||0)>0?+draft.receiptTotal:sum;
+            u["tx/"+uid()]={profile:me,store:String(draft.store||"").trim()||"Ismeretlen bolt",date:draft.date||fmt(new Date()),items,total:fin,created:Date.now()};
             const names=new Set(items.map(i=>norm(i.name)));
             items.forEach(i=>{if(i.raw&&norm(i.raw)!==norm(i.name)&&aliasKey(i.raw))u["alias/"+aliasKey(i.raw)]={raw:i.raw,name:i.name,category:i.category}}); // tanul: blokk-szöveg → javított név
             items.forEach(i=>{if(!i.raw)delete i.raw});
@@ -909,7 +910,7 @@ function openPurchase(){
             trimLog(u);
             items.forEach(i=>Object.assign(u,setInv(i.name,"ok")));
             shop().forEach(s=>{if(names.has(norm(s.name)))u["shop/"+s.id]=null});
-            multi(u);close();toast("Mentve · "+huf(sum),"✅");confetti(18);buzz()}},"Mentés")));
+            multi(u);close();toast("Mentve · "+huf(fin),"✅");confetti(18);buzz()}},"Mentés")));
     }
     draw();
   });
