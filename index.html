@@ -799,6 +799,8 @@ Szabályok:
 - Lidl-blokkon a termék neve áll elöl, a következő sorban pedig a "6 DB * 99 Ft/DB" mennyiség-egységár sor és a sor végösszege (a végösszeg a jobb szélen). A "Visszav.díj" (betétdíj) sorokat NE vedd fel külön tételként: add hozzá a közvetlenül előtte álló termék egységárához és sorösszegéhez (pl. 6 db * 99 Ft + 6 db * 50 Ft → mennyiség 6, unitPrice 149), és a "name" végére írd oda: "(+50 Ft betétdíj)". Így a tételek összege egyezik a végösszeggel. A fotó lehet ferde, árnyékos vagy a blokk csak a kép egy kis részét foglalja el: a blokk szövegét akkor is olvasd ki.
 - Auchan-blokkon (fejléc: "ÁFA MEGNEVEZÉS / MENNYISÉG * EGYSÉGÁR / ÉRTÉK") a termék neve áll elöl, a "2 db * 619 Ft/db" sor a név UTÁN következik, és a hozzá tartozó sorösszeg (1 238) a jobb oldali ÉRTÉK oszlopban van. A nevek és az értékek sorrendje 1:1 egyezik; a fotó görbülete miatt az érték vizuálisan egy sorral följebb vagy lejjebb látszhat, ezért az értékeket sorrendben rendeld a nevekhez, és ellenőrizd az összeggel. A "TÉTELEK SZÁMA", a kártyaadatok és a lábléc nem tétel. Az ezreseket szóköz választja el ("1 238" = 1238).
 - Mielőtt válaszolsz, add össze a tételek sorösszegét: egyeznie kell az ÖSSZESEN értékkel. Ha nem, nézd át újra az árakat és a darabszámokat.
+- A "lineTotal" a tétel sorának végösszege forintban, ahogy a jobb oldali oszlopban áll (kedvezménnyel és betétdíjjal együtt). A "quantity" a darabszám (2 db * 619 Ft → quantity 2, lineTotal 1238). A lineTotal értékek összege legyen az ÖSSZESEN.
+- A dátumot keresd a blokk alján is (kártyaadatok mellett, pl. "26/10/26 19:35" = 2026-10-26, vagy "2026.11.03. 20:29"); az évszám 2026 körüli.
 - Az unitPrice forintban egy darab (egység) ára. Ha csak a sor végösszege áll, számold ki az egységárat.
 - Kedvezmény-sort (negatív összeg, pl. "CC …" Clubcard-kedvezmény, "KEDVEZMÉNY", "AKCIÓ") NE vegyél fel külön tételként. Vond le a hozzá tartozó tétel sorösszegéből, és az egységárat a kedvezményes sorösszeg / mennyiség alapján add meg. Így a tételek összege egyezzen a blokk végösszegével.
 - A "totalAmount" a blokk végösszege ("ÖSSZESEN"), forintban. A részösszeget, a fizetési módot és az egyéb adatokat ne vedd fel tételként.
@@ -807,7 +809,7 @@ A category pontosan ezek egyike: ${CATS.map(c=>c[0]).join(", ")}.`;
 }
 async function scanReceipt(b64,model){
   const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":cfg.apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-    body:JSON.stringify({model:model||cfg.model||"claude-haiku-5-5",max_tokens:4000,tools:[{name:"rogzit",description:"A blokk kiolvasott adatai",input_schema:{type:"object",properties:{store:{type:"string"},purchasedAt:{type:"string"},totalAmount:{type:"number"},items:{type:"array",items:{type:"object",properties:{raw:{type:"string"},name:{type:"string"},guess:{type:"boolean"},quantity:{type:"number"},unitPrice:{type:"number"},category:{type:"string"}},required:["name","quantity","unitPrice","category"]}}},required:["items"]}}],tool_choice:{type:"tool",name:"rogzit"},messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}},{type:"text",text:buildPrompt()}]}]})});
+    body:JSON.stringify({model:model||cfg.model||"claude-haiku-5-5",max_tokens:4000,tools:[{name:"rogzit",description:"A blokk kiolvasott adatai",input_schema:{type:"object",properties:{store:{type:"string"},purchasedAt:{type:"string"},totalAmount:{type:"number"},items:{type:"array",items:{type:"object",properties:{raw:{type:"string"},name:{type:"string"},guess:{type:"boolean"},quantity:{type:"number"},unitPrice:{type:"number"},lineTotal:{type:"number"},category:{type:"string"}},required:["name","quantity","lineTotal","category"]}}},required:["items"]}}],tool_choice:{type:"tool",name:"rogzit"},messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}},{type:"text",text:buildPrompt()}]}]})});
   const j=await r.json().catch(()=>({}));
   if(!r.ok)throw new Error((j.error&&j.error.message)||"Hiba a blokk olvasásakor ("+r.status+")");
   let d=((j.content||[]).find(c=>c.type==="tool_use")||{}).input;
@@ -816,10 +818,10 @@ async function scanReceipt(b64,model){
     try{d=JSON.parse(m[0].replace(/,\s*([}\]])/g,"$1"))}catch(e){throw new Error("A válasz hibás formátumú. Próbáld újra.")}}
   if(typeof d==="string"){try{d=JSON.parse(d)}catch(e){throw new Error("A válasz hibás formátumú. Próbáld újra.")}}
   if(!d||!Array.isArray(d.items))throw new Error("Nem találtam tételeket a blokkon.");
-  return{receiptTotal:Number(d.totalAmount)||0,store:String(d.store||""),date:/^\d{4}-\d{2}-\d{2}$/.test(d.purchasedAt)?d.purchasedAt:fmt(new Date()),
+  return{receiptTotal:Number(d.totalAmount)||0,store:String(d.store||""),dateFound:/^\d{4}-\d{2}-\d{2}$/.test(d.purchasedAt),date:/^\d{4}-\d{2}-\d{2}$/.test(d.purchasedAt)?d.purchasedAt:fmt(new Date()),
     items:d.items.map(i=>{
       const raw=String(i.raw||"").trim(),a=raw&&(T.alias||{})[aliasKey(raw)];
-      return{raw,name:a?a.name:String(i.name||raw).trim(),guess:a?false:!!i.guess,quantity:Number(i.quantity)||1,unitPrice:Number(i.unitPrice)||0,
+      return{raw,name:a?a.name:String(i.name||raw).trim(),guess:a?false:!!i.guess,quantity:Number(i.quantity)||1,unitPrice:(Number(i.lineTotal)||0)?Math.round(Number(i.lineTotal)/(Number(i.quantity)||1)*100)/100:(Number(i.unitPrice)||0),
         category:a&&a.category?a.category:(CATS.some(c=>c[0]===i.category)?i.category:"egyéb")}}).filter(i=>i.name)};
 }
 function openPurchase(){
@@ -831,7 +833,7 @@ function openPurchase(){
       if(!f)return;st="scan";err="";draw();
       try{const{b64,url}=await fileToB64(f);preview=url;draw();const dif=d=>d.receiptTotal>0?Math.abs(Math.round(d.items.reduce((a,i)=>a+i.quantity*i.unitPrice,0)-d.receiptTotal)):0;
         try{draft=await scanReceipt(b64)}catch(e1){logEvent("scan_retry",{msg:String(e1.message).slice(0,120)});draft=await scanReceipt(b64,"claude-sonnet-5-5")}
-        if(dif(draft)>1){try{const d2=await scanReceipt(b64,"claude-sonnet-5-5");if(dif(d2)<dif(draft))draft=d2}catch(e2){}}if(!draft.items.length)draft.items.push({name:"",quantity:1,unitPrice:0,category:"egyéb"});st="review"}
+        if(dif(draft)>1){try{const d2=await scanReceipt(b64,"claude-sonnet-5-5");if(dif(d2)<dif(draft))draft=d2}catch(e2){}}if(draft.dateFound===false&&f.lastModified&&Date.now()-f.lastModified<4e10)draft.date=fmt(new Date(f.lastModified));if(!draft.items.length)draft.items.push({name:"",quantity:1,unitPrice:0,category:"egyéb"});st="review"}
       catch(e){st="pick";err=e.message||"Ismeretlen hiba.";logEvent("scan_error",{msg:String(err).slice(0,160)})}
       draw();
     };
