@@ -805,12 +805,14 @@ A category pontosan ezek egyike: ${CATS.map(c=>c[0]).join(", ")}.`;
 }
 async function scanReceipt(b64,model){
   const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":cfg.apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-    body:JSON.stringify({model:model||cfg.model||"claude-haiku-5-5",max_tokens:4000,messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}},{type:"text",text:buildPrompt()}]}]})});
+    body:JSON.stringify({model:model||cfg.model||"claude-haiku-5-5",max_tokens:4000,tools:[{name:"rogzit",description:"A blokk kiolvasott adatai",input_schema:{type:"object",properties:{store:{type:"string"},purchasedAt:{type:"string"},totalAmount:{type:"number"},items:{type:"array",items:{type:"object",properties:{raw:{type:"string"},name:{type:"string"},guess:{type:"boolean"},quantity:{type:"number"},unitPrice:{type:"number"},category:{type:"string"}},required:["name","quantity","unitPrice","category"]}}},required:["items"]}}],tool_choice:{type:"tool",name:"rogzit"},messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}},{type:"text",text:buildPrompt()}]}]})});
   const j=await r.json().catch(()=>({}));
   if(!r.ok)throw new Error((j.error&&j.error.message)||"Hiba a blokk olvasásakor ("+r.status+")");
-  const txt=((j.content||[]).find(c=>c.type==="text")||{}).text||"";
-  const m=txt.match(/\{[\s\S]*\}/);if(!m)throw new Error("A válasz nem volt értelmezhető. Próbáld újra egy élesebb fotóval.");
-  let d;try{d=JSON.parse(m[0])}catch(e){throw new Error("A válasz hibás formátumú. Próbáld újra.")}
+  let d=((j.content||[]).find(c=>c.type==="tool_use")||{}).input;
+  if(!d){const txt=((j.content||[]).find(c=>c.type==="text")||{}).text||"";
+    const m=txt.match(/\{[\s\S]*\}/);if(!m)throw new Error("A válasz nem volt értelmezhető. Próbáld újra egy élesebb fotóval.");
+    try{d=JSON.parse(m[0].replace(/,\s*([}\]])/g,"$1"))}catch(e){throw new Error("A válasz hibás formátumú. Próbáld újra.")}}
+  if(typeof d==="string"){try{d=JSON.parse(d)}catch(e){throw new Error("A válasz hibás formátumú. Próbáld újra.")}}
   if(!d||!Array.isArray(d.items))throw new Error("Nem találtam tételeket a blokkon.");
   return{receiptTotal:Number(d.totalAmount)||0,store:String(d.store||""),date:/^\d{4}-\d{2}-\d{2}$/.test(d.purchasedAt)?d.purchasedAt:fmt(new Date()),
     items:d.items.map(i=>{
