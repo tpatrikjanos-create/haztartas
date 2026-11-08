@@ -772,7 +772,7 @@ function openPurchase(){
     const onFile=async f=>{
       if(!f)return;st="scan";err="";draw();
       try{const{b64,url}=await fileToB64(f);preview=url;draw();draft=await scanReceipt(b64);if(!draft.items.length)draft.items.push({name:"",quantity:1,unitPrice:0,category:"egyéb"});st="review"}
-      catch(e){st="pick";err=e.message||"Ismeretlen hiba."}
+      catch(e){st="pick";err=e.message||"Ismeretlen hiba.";logEvent("scan_error",{msg:String(err).slice(0,160)})}
       draw();
     };
     cam.addEventListener("change",()=>onFile(cam.files[0]));gal.addEventListener("change",()=>onFile(gal.files[0]));
@@ -803,7 +803,7 @@ function openPurchase(){
       const drawRows=()=>{
         rows.replaceChildren(...draft.items.map((it,idx)=>{const rawEl=it.raw?h("div",{class:"raw"+(it.guess?" guess":"")},(it.guess?"❓ Találgatás, ellenőrizd · ":"")+"blokkon: "+it.raw):null;
           return h("div",{class:"rrow"+(it.guess?" guess":"")},
-          h("input",{value:it.name,placeholder:"Tétel neve",oninput:e=>{it.name=e.target.value;if(it.guess){it.guess=false;if(rawEl)rawEl.className="raw";rawEl&&(rawEl.textContent="blokkon: "+it.raw)}}}),rawEl,
+          h("input",{value:it.name,placeholder:"Tétel neve",oninput:e=>{it.name=e.target.value;it.edited=true;if(it.guess){it.guess=false;if(rawEl)rawEl.className="raw";rawEl&&(rawEl.textContent="blokkon: "+it.raw)}}}),rawEl,
           h("div",{class:"l2"},
             h("input",{type:"number",inputMode:"decimal",min:"0",step:"any",value:it.quantity,"aria-label":"Darab",oninput:e=>{it.quantity=e.target.value;upd()}}),
             h("input",{type:"number",inputMode:"decimal",min:"0",step:"any",value:it.unitPrice,"aria-label":"Egységár",placeholder:"Ft/db",oninput:e=>{it.unitPrice=e.target.value;upd()}}),
@@ -822,10 +822,59 @@ function openPurchase(){
             const names=new Set(items.map(i=>norm(i.name)));
             items.forEach(i=>{if(i.raw&&norm(i.raw)!==norm(i.name)&&aliasKey(i.raw))u["alias/"+aliasKey(i.raw)]={raw:i.raw,name:i.name,category:i.category}}); // tanul: blokk-szöveg → javított név
             items.forEach(i=>{if(!i.raw)delete i.raw});
+            const rt=draft.receiptTotal||0;
+            if(rt>0&&Math.abs(sum-rt)>1)logU(u,"total_mismatch",{store:String(draft.store||"").slice(0,40),receipt:rt,sum:Math.round(sum),lines:items.slice(0,12).map(i=>i.raw||i.name)});
+            const eg=items.filter(i=>i.category==="egyéb").map(i=>i.name);if(eg.length)logU(u,"egyeb",{names:eg.slice(0,15)});
+            const fx=draft.items.filter(i=>i.edited&&i.raw&&String(i.name).trim()&&norm(i.raw)!==norm(i.name)).map(i=>[i.raw,String(i.name).trim()]);if(fx.length)logU(u,"name_fix",{pairs:fx.slice(0,15)});
+            trimLog(u);
             items.forEach(i=>Object.assign(u,setInv(i.name,"ok")));
             shop().forEach(s=>{if(names.has(norm(s.name)))u["shop/"+s.id]=null});
             multi(u);close();toast("Mentve · "+huf(sum),"✅");confetti(18);buzz()}},"Mentés")));
     }
+    draw();
+  });
+}
+
+/* ---------- fejlesztési napló: az app jegyzi, min kellene javítani ---------- */
+const arr=x=>Array.isArray(x)?x:Object.values(x||{});
+function logU(u,type,data){u["log/"+uid()]={t:Date.now(),type,by:me||"",...data};return u}
+function trimLog(u){const ks=Object.entries(T.log||{}).sort((a,b)=>(a[1].t||0)-(b[1].t||0));if(ks.length>300)ks.slice(0,100).forEach(([k])=>{u["log/"+k]=null});return u}
+function logEvent(type,data){multi(trimLog(logU({},type,data)))}
+function logSummary(){
+  const L=Object.values(T.log||{}).sort((a,b)=>(a.t||0)-(b.t||0)),by=t=>L.filter(e=>e.type===t);
+  const cnt=(list)=>{const m={};list.forEach(n=>{const k=String(n).trim();if(k)m[k]=(m[k]||0)+1});return Object.entries(m).sort((a,b)=>b[1]-a[1])};
+  const sug=[];
+  const eg=cnt(by("egyeb").flatMap(e=>arr(e.names)));
+  if(eg.length>=3)sug.push(`Sok tétel került az "egyéb" kategóriába (${eg.reduce((s,e)=>s+e[1],0)} db). Új kategória(k) kellhetnek. Leggyakoribbak: ${eg.slice(0,10).map(e=>e[0]+(e[1]>1?" ×"+e[1]:"")).join(", ")}.`);
+  const mm=by("total_mismatch");
+  if(mm.length)sug.push(`${mm.length} blokknál nem egyezett a tételek összege a végösszeggel (bolt: ${[...new Set(mm.map(e=>e.store||"?"))].join(", ")}). A blokkolvasó promptot finomítani kell. Példák: ${mm.slice(-3).map(e=>`végösszeg ${e.receipt}, tételek ${e.sum}`).join("; ")}.`);
+  const se=by("scan_error");
+  if(se.length)sug.push(`${se.length} olvasási hiba: ${[...new Set(se.map(e=>e.msg))].slice(0,3).join(" | ")}`);
+  const nf=[];by("name_fix").forEach(e=>arr(e.pairs).forEach(p=>nf.push(arr(p).join(" → "))));
+  if(nf.length)sug.push(`Kézzel javított terméknevek (${nf.length}): ${cnt(nf).slice(0,10).map(e=>e[0]).join("; ")}.`);
+  const np=cnt(by("no_photo").flatMap(e=>arr(e.names)));
+  if(np.length)sug.push(`Ételek fotó nélkül (${np.length}): ${np.slice(0,12).map(e=>e[0]).join(", ")}.`);
+  const notes=by("note").map(e=>`${PROFILES[e.by]?PROFILES[e.by].name:"?"}: ${e.text}`);
+  if(notes.length)sug.push("Saját jegyzetek:\n"+notes.map(n=>"  - "+n).join("\n"));
+  const text=`# Háztartás app – fejlesztési napló (${fmt(new Date())})\n\n`+(sug.length?sug.map(x=>"- "+x).join("\n"):"(nincs még javaslat)")+`\n\nEsemény összesen: ${L.length}`;
+  return{sug,text,count:L.length};
+}
+function openLog(){
+  sheet((b,close)=>{
+    const draw=()=>{
+      const S=logSummary();b.replaceChildren();
+      const note=h("textarea",{rows:2,placeholder:"Mit kellene javítani? (pl. hiányzik egy kategória, nem találom valamit…)"});
+      b.append(h("h2",{class:"t"},"Fejlesztési napló"),
+        h("p",{class:"mu sm",style:"margin:-8px 0 12px"},"Az app használat közben jegyzi, min kellene javítani. Másold ki, és küldd el Claude-nak, aki átvezeti a fejlesztést."),
+        S.sug.length?h("div",{class:"card",style:"background:rgba(255,255,255,.04)"},S.sug.map(x=>h("p",{class:"wrap",style:"margin-bottom:8px;white-space:pre-line"},"💡 "+x))):emptyBox("✨","Még nincs javaslat","Használat közben gyűlnek."),
+        h("div",{class:"field"},h("label",{},"SAJÁT JEGYZET"),note),
+        h("div",{class:"pair",style:"margin-bottom:10px"},
+          h("button",{class:"btn ghost",onclick:()=>{const t=note.value.trim();if(!t)return;logEvent("note",{text:t.slice(0,300)});draw();toast("Jegyzet mentve","📝")}},"+ Jegyzet"),
+          h("button",{class:"btn",onclick:async()=>{
+            try{await navigator.clipboard.writeText(S.text);toast("Kimásolva, küldd el Claude-nak","📋")}
+            catch(e){const ta=h("textarea",{rows:8,value:S.text});b.append(ta);ta.select();toast("Jelöld ki és másold ki","📋")}}},"📋 Másolás")),
+        h("button",{class:"btn danger block",onclick:()=>{if(!confirm("Törlöd a teljes naplót?"))return;const u={};Object.keys(T.log||{}).forEach(k=>u["log/"+k]=null);multi(u);draw()}},"Napló törlése"));
+    };
     draw();
   });
 }
@@ -848,6 +897,7 @@ function openSettings(){
         h("div",{class:"field"},h("label",{},"ANTHROPIC API-KULCS"),key),h("div",{class:"field"},h("label",{},"MODELL"),model),
         h("p",{class:"mu sm"},"A kulcs csak ezen az eszközön, a böngésző tárolójában van, és közvetlenül az Anthropic felé megy. Külön, költséglimites kulcsot használj.")),
       msg,
+      h("button",{class:"btn ghost block",style:"margin-bottom:10px",onclick:()=>{close();setTimeout(openLog,360)}},"📝 Fejlesztési napló ("+Object.keys(T.log||{}).length+")"),
       h("button",{class:"btn block",style:"margin-bottom:10px",onclick:async()=>{
         let u=db.value.trim().replace(/\/+$/,"");if(u&&!/^https:\/\/[^\s/]+$/.test(u)){msg.textContent="Az adatbázis-URL formátuma: https://…firebasedatabase.app";return}
         if(u){msg.textContent="Kapcsolat tesztelése…";try{const r=await fetch(u+"/.json?shallow=true");if(!r.ok)throw new Error("HTTP "+r.status)}catch(e){msg.textContent="Nem érhető el ("+e.message+"). Ellenőrizd az URL-t és a szabályokat.";return}}
@@ -883,6 +933,8 @@ async function fetchImgs(){
       await Promise.all(batch.map(async m=>{try{u["img/"+m.id]=await findImg(m.name)}catch(e){}}));
       if(Object.keys(u).length)multi(u);
     }
+    const miss=todo.filter(m=>(T.img||{})[m.id]==="").map(m=>m.name);
+    if(miss.length&&!sessionStorage.getItem("hh.nophoto")){try{sessionStorage.setItem("hh.nophoto","1")}catch(e){}logEvent("no_photo",{names:miss.slice(0,30)})}
   }finally{imgBusy=false}
 }
 
