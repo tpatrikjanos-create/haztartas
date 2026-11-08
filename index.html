@@ -788,10 +788,11 @@ function fileToB64(file,max=2600){
   });
 }
 const aliasKey=raw=>keyOf(raw).slice(0,100);
-function buildPrompt(){
+function buildPrompt(hdr){
   const al=Object.entries(T.alias||{}).slice(-60).map(([k,v])=>`"${v.raw||k}" → "${v.name}"`).join("; ");
   const known=[...new Set(inv().map(i=>i.name))].slice(0,80).join(", ");
-  return `Ez egy magyarországi vásárlási blokk fotója. A bolt bármelyik lehet, és minden bolt másként nyomtat, ezért ne boltra jellemző mintát feltételezz, hanem a blokk szerkezetét olvasd le. A kiolvasott adatokat a "rogzit" eszközzel add vissza.
+  const hd=hdr&&(hdr.total>0||hdr.date)?`\nMár kiolvasott, ellenőrzött fejadatok (használd őket változtatás nélkül): ${hdr.total>0?"végösszeg = "+hdr.total+" Ft; ":""}${hdr.date?"dátum = "+hdr.date+"; ":""}${hdr.store?"bolt = "+hdr.store+".":""}`:"";
+  return `Ez egy magyarországi vásárlási blokk fotója. A bolt bármelyik lehet, és minden bolt másként nyomtat, ezért ne boltra jellemző mintát feltételezz, hanem a blokk szerkezetét olvasd le. A kiolvasott adatokat a "rogzit" eszközzel add vissza.${hd}
 Módszer:
 1. Nézd meg a szerkezetet: hol áll a terméknév; a "2 db * 619 Ft" jellegű mennyiség-egységár sor a név előtt vagy után áll-e; melyik oszlop a sorösszeg (általában a jobb szél). Ezt a blokk egészén következetesen alkalmazd. A fotó lehet ferde, görbült, árnyékos: az érték vizuálisan egy sorral följebb vagy lejjebb látszhat a névhez képest, ilyenkor a sorrend dönt (az n-edik név az n-edik értékhez tartozik).
 2. A "valueColumn" mezőbe először írd ki a sorösszeg-oszlop összes számát fentről lefelé (az ÖSSZESEN/végösszeg nélkül; két egymás utáni azonos szám két külön tétel, egyiket se hagyd ki, és az utolsó sort se; az ezreseket szóköz választhatja el: "1 238" = 1238; a negatív kedvezmény is külön szám).
@@ -826,13 +827,25 @@ function parseReceipt(j){
         category:a&&a.category?a.category:(CATS.some(c=>c[0]===i.category)?i.category:"egyéb")}}).filter(i=>i.name)};
 }
 const recDiff=r=>r.receiptTotal>0?Math.abs(Math.round(r.items.reduce((a,i)=>a+i.quantity*i.unitPrice,0)-r.receiptTotal)):0;
+/* Fejadatok (végösszeg, dátum, bolt) külön, egyszerű feladatként: ezt a modell megbízhatóan olvassa. */
+async function readHeader(b64){
+  const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":cfg.apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+    body:JSON.stringify({model:cfg.model||"claude-haiku-5-5",max_tokens:300,tools:[{name:"fejlec",description:"A blokk fejadatai",input_schema:{type:"object",properties:{store:{type:"string"},purchasedAt:{type:"string"},totalAmount:{type:"number"}},required:["totalAmount"]}}],tool_choice:{type:"tool",name:"fejlec"},
+      messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}},{type:"text",text:"Ezen a magyar vásárlási blokkon CSAK ezt keresd meg, a tételeket ne olvasd: (1) a végösszeget forintban (ÖSSZESEN / FIZETENDŐ / Bankkártya sor; az ezreseket szóköz választhatja el: 8 733 Ft = 8733), (2) a vásárlás dátumát YYYY-MM-DD alakban (a blokk tetején VAGY alján lehet, pl. 2026.11.03., 26/10/26 19:35, 2026-11-03; az évszám 2026 körüli; ha nem látod, hagyd üresen), (3) a bolt nevét."}]}]})});
+  const j=await r.json().catch(()=>({}));if(!r.ok)return null;
+  const d=((j.content||[]).find(c=>c.type==="tool_use")||{}).input;if(!d)return null;
+  const dt=/^\d{4}-\d{2}-\d{2}$/.test(d.purchasedAt)?d.purchasedAt:"",now=Date.now(),t=dt?Date.parse(dt):NaN;
+  return{total:Math.round(Number(d.totalAmount))||0,date:(t&&t<now+864e5*2&&t>now-864e5*800)?dt:"",store:String(d.store||"").trim()};
+}
 /* Beolvasás + önellenőrzés: ha a tételek összege nem egyezik a végösszeggel, a modellt visszaküldjük javítani (max. 2 kör, ugyanazzal a modellel). */
 async function scanReceipt(b64,model){
-  const msgs=[{role:"user",content:[{type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}},{type:"text",text:buildPrompt()}]}];
+  let hdr=null;try{hdr=await readHeader(b64)}catch(e){}
+  const msgs=[{role:"user",content:[{type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}},{type:"text",text:buildPrompt(hdr)}]}];
   let best=null,mdl=model||cfg.model||"claude-haiku-5-5";
   for(let round=0;round<3;round++){
     const j=await apiCall(msgs,mdl);
     let r;try{r=parseReceipt(j)}catch(e){if(best)break;throw e}
+    if(hdr){if(hdr.total>0)r.receiptTotal=hdr.total;if(hdr.date){r.date=hdr.date;r.dateFound=true}if(!r.store&&hdr.store)r.store=hdr.store}
     const diff=recDiff(r);
     if(!best||diff<best.diff)best={r,diff};
     if(diff<=1||!r.receiptTotal)break;
