@@ -190,7 +190,7 @@ const PROFILES = {
   patrik:{name:"Patrik",pet:"🐶",petName:"kutyás",other:"dorina",quick:["Kutyatáp","Jutalomfalat","Kutyasampon"],sounds:["Vau! 🐾","Sétálunk egyet?","Jutalomfalat? 🦴","Farokcsóválás: 100%"],fl:["🦴","🐾","🎾"]},
   dorina:{name:"Dorina",pet:"🐱",petName:"cicás",other:"patrik",quick:["Macskatáp","Macskaalom","Jutalomfalat"],sounds:["Miau! 🐾","Hol az eledel?","Doromb… 💤","Ez az én dobozom!"],fl:["🐟","🐾","🧶"]}
 };
-const CATS=[["tejtermék","🥛","#60a5fa"],["hús","🥩","#fb7185"],["pékáru","🥖","#fbbf24"],["zöldség-gyümölcs","🥦","#34d399"],["édesség","🍫","#c084fc"],["háztartási","🧴","#22d3ee"],["állateledel","🐾","#fb923c"],["egyéb","📦","#94a3b8"]];
+const CATS=[["tejtermék","🥛","#60a5fa"],["hús","🥩","#fb7185"],["pékáru","🥖","#fbbf24"],["zöldség-gyümölcs","🥦","#34d399"],["édesség","🍫","#c084fc"],["háztartási","🧴","#22d3ee"],["állateledel","🐾","#fb923c"],["szárazáru","🌾","#a3e635"],["ital","🥤","#f472b6"],["egyéb","📦","#94a3b8"]];
 const catInfo=n=>CATS.find(c=>c[0]===n)||CATS[CATS.length-1];
 const DAYS=["Hétfő","Kedd","Szerda","Csütörtök","Péntek","Szombat","Vasárnap"];
 const DS=["HÉT","KED","SZE","CSÜ","PÉN","SZO","VAS"];
@@ -738,10 +738,16 @@ const aliasKey=raw=>keyOf(raw).slice(0,100);
 function buildPrompt(){
   const al=Object.entries(T.alias||{}).slice(-60).map(([k,v])=>`"${v.raw||k}" → "${v.name}"`).join("; ");
   const known=[...new Set(inv().map(i=>i.name))].slice(0,80).join(", ");
-  return `Ez egy magyarországi vásárlási blokk (Lidl, Aldi, Spar vagy hasonló). Olvasd ki a tételeket. Válaszolj KIZÁRÓLAG egyetlen JSON objektummal, semmi mással:
-{"store":"bolt neve","purchasedAt":"YYYY-MM-DD","items":[{"raw":"a sor szövege a blokkon, pontosan","name":"kibontott, olvasható terméknév","guess":false,"quantity":1,"unitPrice":0,"category":"..."}]}
-A blokkok gyakran rövidítenek vagy levágják a terméknevet. A "name" mezőbe a feloldott, értelmes magyar terméknevet írd (pl. "CSIRKEMELL FIL. 1KG" → "Csirkemell filé", "TEJ 2,8% 1L" → "Tej 2,8% 1 l"), a márkát csak akkor tartsd meg, ha egyértelmű. Ha a feloldás nem biztos, vagyis a nevet a rövidítésből találgatod, a "guess" legyen true; ha biztos, false.${al?`\nKorábban a felhasználó ezeket javította, ugyanilyen blokk-szöveghez használd ugyanezt: ${al}.`:""}${known?`\nIsmert termékek a háztartásban: ${known}. Ha egy sor nagy valószínűséggel ezek egyikére utal, használd pontosan ezt a nevet.`:""}
-Az unitPrice forintban egy darab (egység) ára; ha a blokkon csak a sor végösszege áll, számold ki az egységárat. A category pontosan ezek egyike: ${CATS.map(c=>c[0]).join(", ")}. Ha a dátum nem olvasható, a purchasedAt legyen üres. Kedvezmény-sorokat és a végösszeget ne vedd fel tételként.`;
+  return `Ez egy magyarországi vásárlási blokk (Tesco, Lidl, Aldi, Spar vagy hasonló). Olvasd ki a tételeket. Válaszolj KIZÁRÓLAG egyetlen JSON objektummal, semmi mással:
+{"store":"bolt neve (pl. Tesco)","purchasedAt":"YYYY-MM-DD","totalAmount":0,"items":[{"raw":"a sor szövege a blokkon, pontosan","name":"kibontott, olvasható terméknév","guess":false,"quantity":1,"unitPrice":0,"category":"..."}]}
+Szabályok:
+- A blokkok gyakran rövidítenek vagy levágják a terméknevet. A "name" a feloldott, értelmes magyar terméknév (pl. "TEJ 2,8% 1L" → "Tej 2,8% 1 l"). A "TS" Tesco saját márkát jelent. Ha a feloldás nem biztos, vagyis a nevet a rövidítésből találgatod, a "guess" legyen true, különben false.
+- Egyes blokkokon (pl. Tesco) a mennyiség és egységár sor ("2,000 db * 941,00 Ft /db") a termék neve ELŐTT áll, és a közvetlenül utána következő névsorhoz tartozik; a névsor végén a sor végösszege áll. A mennyiség lehet tizedes (kg-os áru).
+- Az unitPrice forintban egy darab (egység) ára. Ha csak a sor végösszege áll, számold ki az egységárat.
+- Kedvezmény-sort (negatív összeg, pl. "CC …" Clubcard-kedvezmény, "KEDVEZMÉNY", "AKCIÓ") NE vegyél fel külön tételként. Vond le a hozzá tartozó tétel sorösszegéből, és az egységárat a kedvezményes sorösszeg / mennyiség alapján add meg. Így a tételek összege egyezzen a blokk végösszegével.
+- A "totalAmount" a blokk végösszege ("ÖSSZESEN"), forintban. A részösszeget, a fizetési módot és az egyéb adatokat ne vedd fel tételként.
+- A dátum lehet "2026.11.06." vagy "26/11/06" alakú is; purchasedAt-ben YYYY-MM-DD legyen. Ha nem olvasható, legyen üres.${al?`\n- Korábban a felhasználó ezeket javította, ugyanilyen blokk-szöveghez használd ugyanezt: ${al}.`:""}${known?`\n- Ismert termékek a háztartásban: ${known}. Ha egy sor nagy valószínűséggel ezek egyikére utal, használd pontosan ezt a nevet.`:""}
+A category pontosan ezek egyike: ${CATS.map(c=>c[0]).join(", ")}.`;
 }
 async function scanReceipt(b64){
   const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":cfg.apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
@@ -752,7 +758,7 @@ async function scanReceipt(b64){
   const m=txt.match(/\{[\s\S]*\}/);if(!m)throw new Error("A válasz nem volt értelmezhető. Próbáld újra egy élesebb fotóval.");
   let d;try{d=JSON.parse(m[0])}catch(e){throw new Error("A válasz hibás formátumú. Próbáld újra.")}
   if(!d||!Array.isArray(d.items))throw new Error("Nem találtam tételeket a blokkon.");
-  return{store:String(d.store||""),date:/^\d{4}-\d{2}-\d{2}$/.test(d.purchasedAt)?d.purchasedAt:fmt(new Date()),
+  return{receiptTotal:Number(d.totalAmount)||0,store:String(d.store||""),date:/^\d{4}-\d{2}-\d{2}$/.test(d.purchasedAt)?d.purchasedAt:fmt(new Date()),
     items:d.items.map(i=>{
       const raw=String(i.raw||"").trim(),a=raw&&(T.alias||{})[aliasKey(raw)];
       return{raw,name:a?a.name:String(i.name||raw).trim(),guess:a?false:!!i.guess,quantity:Number(i.quantity)||1,unitPrice:Number(i.unitPrice)||0,
@@ -788,7 +794,12 @@ function openPurchase(){
     function reviewUI(){
       const store=h("input",{value:draft.store,placeholder:"Bolt (Lidl, Aldi, Spar…)",oninput:e=>draft.store=e.target.value}),
         date=h("input",{type:"date",value:draft.date,oninput:e=>draft.date=e.target.value}),rows=h("div"),total=h("div",{class:"total"}),e2=h("div",{class:"err"});
-      const upd=()=>{total.textContent=huf(draft.items.reduce((s,i)=>s+(+i.quantity||0)*(+i.unitPrice||0),0))};
+      const chk=h("div",{class:"sm",style:"margin:-6px 0 10px"});
+      const upd=()=>{const sum=draft.items.reduce((s,i)=>s+(+i.quantity||0)*(+i.unitPrice||0),0);total.textContent=huf(sum);
+        const rt=draft.receiptTotal||0;
+        if(rt>0){const diff=Math.round(sum-rt);chk.style.color=Math.abs(diff)<=1?"var(--ok)":"var(--low)";
+          chk.textContent=Math.abs(diff)<=1?"✓ Egyezik a blokk végösszegével ("+huf(rt)+")":"⚠ A blokk végösszege "+huf(rt)+", a tételeké "+huf(sum)+" (különbség: "+huf(Math.abs(diff))+"). Ellenőrizd a darabszámokat és árakat."}
+        else chk.textContent=""};
       const drawRows=()=>{
         rows.replaceChildren(...draft.items.map((it,idx)=>{const rawEl=it.raw?h("div",{class:"raw"+(it.guess?" guess":"")},(it.guess?"❓ Találgatás, ellenőrizd · ":"")+"blokkon: "+it.raw):null;
           return h("div",{class:"rrow"+(it.guess?" guess":"")},
@@ -801,7 +812,7 @@ function openPurchase(){
       };
       drawRows();upd();
       body.append(h("h2",{class:"t"},"Ellenőrzés mentés előtt"),h("div",{class:"pair",style:"margin-bottom:10px"},store,date),rows,
-        h("button",{class:"btn ghost s",style:"margin-bottom:10px",onclick:()=>{draft.items.push({name:"",quantity:1,unitPrice:0,category:"egyéb"});drawRows()}},"+ Tétel"),total,e2,
+        h("button",{class:"btn ghost s",style:"margin-bottom:10px",onclick:()=>{draft.items.push({name:"",quantity:1,unitPrice:0,category:"egyéb"});drawRows()}},"+ Tétel"),total,chk,e2,
         h("div",{class:"pair"},h("button",{class:"btn ghost",onclick:()=>{st="pick";draft=null;draw()}},"Vissza"),
           h("button",{class:"btn",onclick:()=>{
             const items=draft.items.map(i=>({name:String(i.name).trim(),raw:i.raw||"",quantity:+i.quantity||1,unitPrice:+i.unitPrice||0,category:i.category})).filter(i=>i.name);
