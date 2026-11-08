@@ -797,6 +797,8 @@ Szabályok:
 - A blokkok gyakran rövidítenek vagy levágják a terméknevet. A "name" a feloldott, értelmes magyar terméknév (pl. "TEJ 2,8% 1L" → "Tej 2,8% 1 l"). A "TS" Tesco saját márkát jelent. Ha a feloldás nem biztos, vagyis a nevet a rövidítésből találgatod, a "guess" legyen true, különben false.
 - Egyes blokkokon (pl. Tesco) a mennyiség és egységár sor ("2,000 db * 941,00 Ft /db") a termék neve ELŐTT áll, és a közvetlenül utána következő névsorhoz tartozik; a névsor végén a sor végösszege áll. A mennyiség lehet tizedes (kg-os áru).
 - Lidl-blokkon a termék neve áll elöl, a következő sorban pedig a "6 DB * 99 Ft/DB" mennyiség-egységár sor és a sor végösszege (a végösszeg a jobb szélen). A "Visszav.díj" (betétdíj) sorokat NE vedd fel külön tételként: add hozzá a közvetlenül előtte álló termék egységárához és sorösszegéhez (pl. 6 db * 99 Ft + 6 db * 50 Ft → mennyiség 6, unitPrice 149), és a "name" végére írd oda: "(+50 Ft betétdíj)". Így a tételek összege egyezik a végösszeggel. A fotó lehet ferde, árnyékos vagy a blokk csak a kép egy kis részét foglalja el: a blokk szövegét akkor is olvasd ki.
+- Auchan-blokkon (fejléc: "ÁFA MEGNEVEZÉS / MENNYISÉG * EGYSÉGÁR / ÉRTÉK") a termék neve áll elöl, a "2 db * 619 Ft/db" sor a név UTÁN következik, és a hozzá tartozó sorösszeg (1 238) a jobb oldali ÉRTÉK oszlopban van. A nevek és az értékek sorrendje 1:1 egyezik; a fotó görbülete miatt az érték vizuálisan egy sorral följebb vagy lejjebb látszhat, ezért az értékeket sorrendben rendeld a nevekhez, és ellenőrizd az összeggel. A "TÉTELEK SZÁMA", a kártyaadatok és a lábléc nem tétel. Az ezreseket szóköz választja el ("1 238" = 1238).
+- Mielőtt válaszolsz, add össze a tételek sorösszegét: egyeznie kell az ÖSSZESEN értékkel. Ha nem, nézd át újra az árakat és a darabszámokat.
 - Az unitPrice forintban egy darab (egység) ára. Ha csak a sor végösszege áll, számold ki az egységárat.
 - Kedvezmény-sort (negatív összeg, pl. "CC …" Clubcard-kedvezmény, "KEDVEZMÉNY", "AKCIÓ") NE vegyél fel külön tételként. Vond le a hozzá tartozó tétel sorösszegéből, és az egységárat a kedvezményes sorösszeg / mennyiség alapján add meg. Így a tételek összege egyezzen a blokk végösszegével.
 - A "totalAmount" a blokk végösszege ("ÖSSZESEN"), forintban. A részösszeget, a fizetési módot és az egyéb adatokat ne vedd fel tételként.
@@ -827,7 +829,9 @@ function openPurchase(){
     cam.setAttribute("capture","environment");
     const onFile=async f=>{
       if(!f)return;st="scan";err="";draw();
-      try{const{b64,url}=await fileToB64(f);preview=url;draw();try{draft=await scanReceipt(b64)}catch(e1){logEvent("scan_retry",{msg:String(e1.message).slice(0,120)});draft=await scanReceipt(b64,"claude-sonnet-5-5")}if(!draft.items.length)draft.items.push({name:"",quantity:1,unitPrice:0,category:"egyéb"});st="review"}
+      try{const{b64,url}=await fileToB64(f);preview=url;draw();const dif=d=>d.receiptTotal>0?Math.abs(Math.round(d.items.reduce((a,i)=>a+i.quantity*i.unitPrice,0)-d.receiptTotal)):0;
+        try{draft=await scanReceipt(b64)}catch(e1){logEvent("scan_retry",{msg:String(e1.message).slice(0,120)});draft=await scanReceipt(b64,"claude-sonnet-5-5")}
+        if(dif(draft)>1){try{const d2=await scanReceipt(b64,"claude-sonnet-5-5");if(dif(d2)<dif(draft))draft=d2}catch(e2){}}if(!draft.items.length)draft.items.push({name:"",quantity:1,unitPrice:0,category:"egyéb"});st="review"}
       catch(e){st="pick";err=e.message||"Ismeretlen hiba.";logEvent("scan_error",{msg:String(err).slice(0,160)})}
       draw();
     };
