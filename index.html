@@ -243,7 +243,7 @@ const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
 const hue=s=>{let h=0;for(const c of String(s))h=(h*31+c.charCodeAt(0))%360;return h};
 const grad=m=>{const h=hue(m.name);return`linear-gradient(145deg,hsl(${h} 68% 46%),hsl(${(h+55)%360} 70% 28%))`};
-const mealImg=m=>{const u=(T.img||{})[m.id];return typeof u==="string"&&u.startsWith("https://upload.wikimedia.org/")?u:""};
+const mealImg=m=>{const u=(T.img||{})[m.id];return typeof u==="string"&&(u.startsWith("data:image/")||u.startsWith("https://"))?u:""};
 const mealBg=(m,big)=>{const u=mealImg(m);return u?`background:linear-gradient(180deg,rgba(0,0,0,${big?".0":".05"}) ${big?"35%":"0"},rgba(0,0,0,${big?".72":".45"})),url(${JSON.stringify(u)}) center/cover`:`background:${grad(m)}`};
 const mealTile=m=>h("div",{class:"tile",style:mealBg(m)+";color:#fff"},mealImg(m)?null:m.emoji);
 const afterPaint=f=>requestAnimationFrame(()=>requestAnimationFrame(f));
@@ -430,7 +430,7 @@ function render(){
   TABS.forEach(([id,l,ic])=>{const b=h("button",{class:tab===id?"on":"",onclick:()=>go(id),"aria-label":l},ico(I[ic]),l);
     if(id==="list"&&cnt)b.append(h("span",{class:"badge"},cnt>99?"99+":cnt));nav.append(b)});
 }
-function go(t){if(t===tab)return;tab=t;if(t==="menu")fetchImgs();animNext=true;buzz();window.scrollTo({top:0});render()}
+function go(t){if(t===tab)return;tab=t;animNext=true;buzz();window.scrollTo({top:0});render()}
 
 function topbar(title,sub){
   const P=tmeta();
@@ -553,7 +553,6 @@ function viewList(){
 function viewMenu(){
   const out=[topbar("Menü","Heti terv és válogatás"),h("div",{style:"margin-bottom:12px"},seg([["week","📅 Heti menü"],["swipe","🔥 Válogatás"]],menuMode,v=>{menuMode=v;animNext=true;render()}))];
   out.push(menuMode==="week"?viewWeek():viewSwipe());
-  if(Object.values(T.img||{}).some(Boolean))out.push(h("p",{class:"mu sm",style:"text-align:center;margin-top:10px"},"Ételfotók: Wikipédia / Wikimedia Commons (szabad licenc)"));
   return out;
 }
 function weekMissing(days){
@@ -587,7 +586,7 @@ function openDaySheet(ds){
     b.append(h("h2",{class:"t"},dayLabel(ds)));
     if(m){
       b.append(h("div",{class:"row"},mealTile(m),h("div",{class:"grow wrap"},h("b",{},m.name),h("div",{class:"mu sm"},e.leftover?"maradék":"főzés")),
-        h("button",{class:"btn danger s",onclick:()=>{write("menu/"+ds,null);close()}},"Töröl")));
+        h("button",{class:"btn ghost s",onclick:()=>{close();setTimeout(()=>openMealPhoto(m),360)}},"📷"),h("button",{class:"btn danger s",onclick:()=>{write("menu/"+ds,null);close()}},"Töröl")));
       b.append(h("div",{class:"pair",style:"margin:10px 0"},h("button",{class:"btn ghost",onclick:()=>{close();setTimeout(()=>openCook(m),360)}},"👩‍🍳 Főztem"),
         prev&&prev.mealId&&!e.leftover?h("button",{class:"btn ghost",onclick:()=>{write("menu/"+ds,{mealId:prev.mealId,leftover:true});close()}},"↩ Maradék"):null));
     }else if(prev&&prev.mealId){
@@ -644,7 +643,8 @@ function viewSwipe(){
   const act=h("div",{class:"actions"},
     h("button",{class:"round s","aria-label":"Visszavonás",disabled:!lastVote,style:lastVote?"":"opacity:.35",onclick:()=>{if(!lastVote)return;write(`swipes/${me}/${lastVote}`,null);lastVote=null}},"↩"),
     h("button",{class:"round no","aria-label":"Nem",onclick:()=>top&&top._fling(-1)},"✕"),
-    h("button",{class:"round yes","aria-label":"Kérem",onclick:()=>top&&top._fling(1)},"❤️"));
+    h("button",{class:"round yes","aria-label":"Kérem",onclick:()=>top&&top._fling(1)},"❤️"),
+    h("button",{class:"round s","aria-label":"Fotó","data-act":"photo",onclick:()=>{const m=queue[0];if(m)openMealPhoto(m)}},"📷"));
   const matches=allMeals().filter(m=>getAt(`swipes/${me}/${m.id}`)===1&&getAt(`swipes/${other}/${m.id}`)===1);
   const cnt=p=>Object.values(getAt("swipes/"+p)||{}).filter(v=>v===1).length;
   const mc=h("div",{class:"card"},h("h2",{},"Közös kedvencek "+(matches.length?"· "+matches.length:"")),
@@ -909,40 +909,36 @@ function openSettings(){
   });
 }
 
-/* ---------- ételfotók: magyar Wikipédia (kulcs nélkül, jogtiszta) ---------- */
-const stem=w=>norm(w).replace(/[^a-záéíóöőúüű]/g,"").slice(0,5);
-const wordsOf=t=>norm(t).split(/\s+/).map(stem).filter(x=>x.length>=5);
-async function findImg(name){
-  const q=encodeURIComponent(name);
-  const r=await fetch(`https://hu.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrsearch=${q}&gsrlimit=4&prop=pageimages&piprop=thumbnail&pithumbsize=640`);
-  if(!r.ok)throw new Error("HTTP "+r.status);
-  const j=await r.json(),pages=Object.values((j.query&&j.query.pages)||{}).sort((a,b)=>(a.index||99)-(b.index||99)),mine=wordsOf(name);
-  for(const p of pages){
-    const src=p.thumbnail&&p.thumbnail.source;if(!src||!src.startsWith("https://upload.wikimedia.org/"))continue;
-    const tw=wordsOf(p.title||"");if(mine.some(w=>tw.includes(w)))return src; // csak ha a cikk címe egyezik az étel nevével
-  }
-  return "";
+/* ---------- ételfotók: saját fotó vagy beillesztett kép-URL ---------- */
+function resizeImg(file,max=520){
+  return new Promise((res,rej)=>{
+    const img=new Image(),url=URL.createObjectURL(file);
+    img.onload=()=>{const r=Math.min(1,max/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=Math.round(img.width*r);c.height=Math.round(img.height*r);
+      c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);res(c.toDataURL("image/jpeg",.78))};
+    img.onerror=()=>rej(new Error("A kép nem olvasható."));img.src=url;
+  });
 }
-let imgBusy=false;
-async function fetchImgs(){
-  if(imgBusy||!navigator.onLine)return;imgBusy=true;
-  try{
-    const todo=allMeals().filter(m=>(T.img||{})[m.id]===undefined);
-    for(let i=0;i<todo.length;i+=3){
-      const batch=todo.slice(i,i+3),u={};
-      await Promise.all(batch.map(async m=>{try{u["img/"+m.id]=await findImg(m.name)}catch(e){}}));
-      if(Object.keys(u).length)multi(u);
-    }
-    const miss=todo.filter(m=>(T.img||{})[m.id]==="").map(m=>m.name);
-    if(miss.length&&!sessionStorage.getItem("hh.nophoto")){try{sessionStorage.setItem("hh.nophoto","1")}catch(e){}logEvent("no_photo",{names:miss.slice(0,30)})}
-  }finally{imgBusy=false}
+function openMealPhoto(m,after){
+  sheet((b,close)=>{
+    const prev=h("div",{class:"tile",style:"width:100%;height:170px;border-radius:18px;margin-bottom:12px;color:#fff;font-size:56px;"+mealBg(m,true)},mealImg(m)?null:m.emoji);
+    const err=h("div",{class:"err"}),file=h("input",{type:"file",accept:"image/*",style:"display:none"});
+    const url=h("input",{placeholder:"Kép webcíme (https://…)",type:"url",inputmode:"url"});
+    const save=v=>{multi({["img/"+m.id]:v});close();toast(v?"Fotó mentve":"Fotó törölve","📷");if(after)after()};
+    file.addEventListener("change",async()=>{const f=file.files[0];if(!f)return;try{save(await resizeImg(f))}catch(e){err.textContent=e.message}});
+    b.append(h("h2",{class:"t wrap"},"Fotó: "+m.name),prev,
+      h("button",{class:"btn block",onclick:()=>file.click()},"📷 Fotó készítése / kiválasztása"),file,
+      h("a",{class:"btn ghost block",style:"margin-top:8px;text-decoration:none;text-align:center",target:"_blank",rel:"noopener",
+        href:"https://www.mindmegette.hu/kereses/?q="+encodeURIComponent(m.name)},"🔎 Keresés a mindmegette.hu-n"),
+      h("p",{class:"mu sm",style:"margin:10px 0 6px"},"Keress rá, nyomj hosszan a képre → „Kép címének másolása”, és illeszd be ide:"),
+      h("div",{class:"pair"},url,h("button",{class:"btn s",style:"flex:0 0 auto",onclick:()=>{const v=url.value.trim();if(!/^https:\/\//.test(v)){err.textContent="https:// címet adj meg.";return}save(v)}},"Mentés")),err,
+      mealImg(m)?h("button",{class:"btn danger block",style:"margin-top:8px",onclick:()=>save("")},"Fotó törlése"):null);
+  });
 }
 
 /* ---------- indulás ---------- */
 render();
 connect();
 if(cfg.dbUrl)flush();
-setTimeout(()=>{if(me)fetchImgs()},3500);
 </script>
 </body>
 </html>
