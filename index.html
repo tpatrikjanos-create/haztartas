@@ -193,7 +193,7 @@ const PROFILES = {
   dorina:{name:"Dorina",pet:"🐱",petName:"",other:"patrik",quick:["Macskatáp","Macskaalom","Jutalomfalat"],sounds:["Miau! 🐾","Hol az eledel?","Doromb… 💤","Ez az én dobozom!"],fl:["🐟","🐾","🧶"]}
 };
 const CATS=[["tejtermék","🥛","#60a5fa"],["hús","🥩","#fb7185"],["pékáru","🥖","#fbbf24"],["zöldség-gyümölcs","🥦","#34d399"],["édesség","🍫","#c084fc"],["háztartási","🧴","#22d3ee"],["állateledel","🐾","#fb923c"],["szárazáru","🌾","#a3e635"],["ital","🥤","#f472b6"],["nem élelmiszer","🛍️","#818cf8"],["egyéb","📦","#94a3b8"]];
-const NONFOOD=new Set(["háztartási","állateledel","nem élelmiszer"]); // ezek nem kerülnek a leltárba
+const NONFOOD=new Set(["nem élelmiszer"]); // tartós tárgyak: nem kerülnek a leltárba (a fogyó háztartási cikkek és az állateledel igen)
 const catInfo=n=>CATS.find(c=>c[0]===n)||CATS[CATS.length-1];
 const DAYS=["Hétfő","Kedd","Szerda","Csütörtök","Péntek","Szombat","Vasárnap"];
 const DS=["HÉT","KED","SZE","CSÜ","PÉN","SZO","VAS"];
@@ -837,7 +837,7 @@ Módszer:
 4. Kedvezmény-sort (negatív összeg) NE vegyél fel külön tételként: vond le a hozzá tartozó termék sorösszegéből. A betétdíj- / visszaváltási díj-sorokat ("Visszav.díj", "betétdíj", palackdíj, "BF") is NE vegyél fel külön tételként: add hozzá a közvetlenül mellette álló termék sorösszegéhez, a termék "deposit" mezőjébe írd a hozzá tartozó betétdíj összegét forintban (pl. 6 db palack × 50 Ft → deposit 300), a név végére pedig: "(+50 Ft betétdíj)". A "depositTotal" a blokk összes betétdíjának összege forintban (0, ha nincs).
 5. A "totalAmount" a blokk végösszege (ÖSSZESEN/FIZETENDŐ). A részösszeg, fizetési mód, kártyaadat, "tételek száma" és lábléc nem tétel. A lineTotal értékek összege legyen a végösszeg; ellenőrizd, és ha nem egyezik, nézd át újra a képet.
 6. A dátum a blokk tetején VAGY alján is lehet (pl. "2026.11.03.", "26/10/26 19:35"); purchasedAt YYYY-MM-DD, az évszám 2026 körüli. Ha nem olvasható, legyen üres.
-7. Ami nem élelmiszer (tisztítószer, drogéria, edény, szatyor, játék, jelmez, dekoráció, ruha, bármilyen tárgy), annak a kategóriája "háztartási" (tisztítás, drogéria, háztartási cikk), "állateledel" (kisállat-eledel) vagy "nem élelmiszer" (minden más tárgy) legyen; élelmiszernél soha ne ezeket használd.
+7. Ami nem élelmiszer, két csoportra oszlik. Fogyó háztartási cikk, ami elfogy és újra kell venni (papírtörlő, WC-papír, mosogatószer, tisztítószer, mosópor, szemeteszsák, szivacs, elem, gyertya, tasak, zsebkendő, drogéria), kategóriája "háztartási"; kisállat-eledel: "állateledel". Tartós tárgy, amit nem fogyasztanak el (tányér, pohár, edény, szatyor, játék, jelmez, dekoráció, ruha, eszköz, bármilyen egyéb tárgy), kategóriája "nem élelmiszer". Élelmiszernél soha ne használd ezeket.
 8. A blokk rövidíti a neveket. A "name" a feloldott, értelmes magyar terméknév (pl. "TEJ 2,8% 1L" → "Tej 2,8% 1 l"; "TS" = Tesco saját márka). Ha a feloldás nem biztos (találgatod), a "guess" legyen true. A "raw" a sor szövege a blokkon, pontosan.${al?`\n9. Korábban a felhasználó ezeket javította, ugyanilyen blokk-szöveghez használd ugyanezt: ${al}.`:""}${known?`\n10. Ismert termékek a háztartásban: ${known}. Ha egy sor nagy valószínűséggel ezek egyikére utal, használd pontosan ezt a nevet.`:""}
 A category pontosan ezek egyike: ${CATS.map(c=>c[0]).join(", ")}.`;
 }
