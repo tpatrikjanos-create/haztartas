@@ -192,7 +192,8 @@ const PROFILES = {
   patrik:{name:"Patrik",pet:"🐕‍🦺",petName:"",other:"dorina",quick:["Kutyatáp","Jutalomfalat","Kutyasampon"],sounds:["Vau! 🐾","Sétálunk egyet?","Jutalomfalat? 🦴","Farokcsóválás: 100%"],fl:["🦴","🐾","🎾"]},
   dorina:{name:"Dorina",pet:"🐱",petName:"",other:"patrik",quick:["Macskatáp","Macskaalom","Jutalomfalat"],sounds:["Miau! 🐾","Hol az eledel?","Doromb… 💤","Ez az én dobozom!"],fl:["🐟","🐾","🧶"]}
 };
-const CATS=[["tejtermék","🥛","#60a5fa"],["hús","🥩","#fb7185"],["pékáru","🥖","#fbbf24"],["zöldség-gyümölcs","🥦","#34d399"],["édesség","🍫","#c084fc"],["háztartási","🧴","#22d3ee"],["állateledel","🐾","#fb923c"],["szárazáru","🌾","#a3e635"],["ital","🥤","#f472b6"],["egyéb","📦","#94a3b8"]];
+const CATS=[["tejtermék","🥛","#60a5fa"],["hús","🥩","#fb7185"],["pékáru","🥖","#fbbf24"],["zöldség-gyümölcs","🥦","#34d399"],["édesség","🍫","#c084fc"],["háztartási","🧴","#22d3ee"],["állateledel","🐾","#fb923c"],["szárazáru","🌾","#a3e635"],["ital","🥤","#f472b6"],["nem élelmiszer","🛍️","#818cf8"],["egyéb","📦","#94a3b8"]];
+const NONFOOD=new Set(["háztartási","állateledel","nem élelmiszer"]); // ezek nem kerülnek a leltárba
 const catInfo=n=>CATS.find(c=>c[0]===n)||CATS[CATS.length-1];
 const DAYS=["Hétfő","Kedd","Szerda","Csütörtök","Péntek","Szombat","Vasárnap"];
 const DS=["HÉT","KED","SZE","CSÜ","PÉN","SZO","VAS"];
@@ -561,7 +562,8 @@ function editTx(id){
       rows=h("div"),chk=h("div",{class:"sm",style:"margin:0 0 10px"}),e2=h("div",{class:"err"}),
       totIn=h("input",{type:"number",inputMode:"numeric",min:"0",step:"1",value:d.total||"",placeholder:"Végösszeg",style:"font-size:24px;font-weight:800",oninput:e=>{d.total=+e.target.value||0;upd()}});
     const upd=()=>{const sum=d.items.reduce((s,i)=>s+(+i.quantity||0)*(+i.unitPrice||0),0);
-      if(d.total>0&&Math.abs(Math.round(sum-d.total))>1){chk.className="err";chk.textContent="⚠ A végösszeg "+huf(d.total)+", a tételeké "+huf(sum)+" (különbség: "+huf(Math.abs(Math.round(sum-d.total)))+"). Ellenőrizd a részárakat! Mentéskor a végösszeg kerül a kiadásokba."}
+      if(d.total>0&&!d.items.some(i=>String(i.name||"").trim())){chk.className="sm";chk.style.color="";chk.textContent="Csak a végösszeg kerül mentésre, tételek nélkül."}
+      else if(d.total>0&&Math.abs(Math.round(sum-d.total))>1){chk.className="err";chk.textContent="⚠ A végösszeg "+huf(d.total)+", a tételeké "+huf(sum)+" (különbség: "+huf(Math.abs(Math.round(sum-d.total)))+"). Ellenőrizd a részárakat! Mentéskor a végösszeg kerül a kiadásokba."}
       else if(d.total>0){chk.className="sm";chk.style.color="var(--ok)";chk.textContent="✓ A részárak összege egyezik a végösszeggel"}
       else{chk.className="err";chk.textContent="⚠ Nincs végösszeg: a tételek összege ("+huf(sum)+") kerül mentésre."}};
     const drawRows=()=>{rows.replaceChildren(...d.items.map((it,idx)=>h("div",{class:"rrow"},
@@ -578,7 +580,7 @@ function editTx(id){
       h("div",{class:"pair"},h("button",{class:"btn ghost",onclick:()=>{close();setTimeout(()=>openTx(id),360)}},"Mégse"),
         h("button",{class:"btn",onclick:()=>{
           const items=d.items.map(i=>{const o={name:String(i.name||"").trim(),quantity:+i.quantity||1,unitPrice:+i.unitPrice||0,category:i.category||"egyéb"};if(i.raw)o.raw=i.raw;if(+i.deposit>0)o.deposit=+i.deposit;return o}).filter(i=>i.name);
-          if(!items.length){e2.textContent="Legalább egy tételt adj meg.";return}
+          if(!items.length&&!(d.total>0)){e2.textContent="Adj meg legalább egy tételt, vagy a végösszeget.";return}
           const sum=items.reduce((s,i)=>s+i.quantity*i.unitPrice,0),{id:_i,...rest}=t0,o={...rest,store:String(d.store||"").trim()||"Ismeretlen bolt",date:d.date||fmt(new Date()),items,total:d.total>0?d.total:sum};
           const dep=items.reduce((a,i)=>a+(i.deposit||0),0);if(dep>0)o.deposit=dep;else if(!(+t0.deposit>0))delete o.deposit;
           write("tx/"+id,o);close();toast("Mentve · "+huf(o.total),"✅")}},"Mentés")));
@@ -835,7 +837,8 @@ Módszer:
 4. Kedvezmény-sort (negatív összeg) NE vegyél fel külön tételként: vond le a hozzá tartozó termék sorösszegéből. A betétdíj- / visszaváltási díj-sorokat ("Visszav.díj", "betétdíj", palackdíj, "BF") is NE vegyél fel külön tételként: add hozzá a közvetlenül mellette álló termék sorösszegéhez, a termék "deposit" mezőjébe írd a hozzá tartozó betétdíj összegét forintban (pl. 6 db palack × 50 Ft → deposit 300), a név végére pedig: "(+50 Ft betétdíj)". A "depositTotal" a blokk összes betétdíjának összege forintban (0, ha nincs).
 5. A "totalAmount" a blokk végösszege (ÖSSZESEN/FIZETENDŐ). A részösszeg, fizetési mód, kártyaadat, "tételek száma" és lábléc nem tétel. A lineTotal értékek összege legyen a végösszeg; ellenőrizd, és ha nem egyezik, nézd át újra a képet.
 6. A dátum a blokk tetején VAGY alján is lehet (pl. "2026.11.03.", "26/10/26 19:35"); purchasedAt YYYY-MM-DD, az évszám 2026 körüli. Ha nem olvasható, legyen üres.
-7. A blokk rövidíti a neveket. A "name" a feloldott, értelmes magyar terméknév (pl. "TEJ 2,8% 1L" → "Tej 2,8% 1 l"; "TS" = Tesco saját márka). Ha a feloldás nem biztos (találgatod), a "guess" legyen true. A "raw" a sor szövege a blokkon, pontosan.${al?`\n8. Korábban a felhasználó ezeket javította, ugyanilyen blokk-szöveghez használd ugyanezt: ${al}.`:""}${known?`\n9. Ismert termékek a háztartásban: ${known}. Ha egy sor nagy valószínűséggel ezek egyikére utal, használd pontosan ezt a nevet.`:""}
+7. Ami nem élelmiszer (tisztítószer, drogéria, edény, szatyor, játék, jelmez, dekoráció, ruha, bármilyen tárgy), annak a kategóriája "háztartási" (tisztítás, drogéria, háztartási cikk), "állateledel" (kisállat-eledel) vagy "nem élelmiszer" (minden más tárgy) legyen; élelmiszernél soha ne ezeket használd.
+8. A blokk rövidíti a neveket. A "name" a feloldott, értelmes magyar terméknév (pl. "TEJ 2,8% 1L" → "Tej 2,8% 1 l"; "TS" = Tesco saját márka). Ha a feloldás nem biztos (találgatod), a "guess" legyen true. A "raw" a sor szövege a blokkon, pontosan.${al?`\n9. Korábban a felhasználó ezeket javította, ugyanilyen blokk-szöveghez használd ugyanezt: ${al}.`:""}${known?`\n10. Ismert termékek a háztartásban: ${known}. Ha egy sor nagy valószínűséggel ezek egyikére utal, használd pontosan ezt a nevet.`:""}
 A category pontosan ezek egyike: ${CATS.map(c=>c[0]).join(", ")}.`;
 }
 const RSCHEMA={type:"object",properties:{valueColumn:{type:"array",items:{type:"number"}},depositTotal:{type:"number"},store:{type:"string"},purchasedAt:{type:"string"},totalAmount:{type:"number"},items:{type:"array",items:{type:"object",properties:{raw:{type:"string"},name:{type:"string"},guess:{type:"boolean"},quantity:{type:"number"},lineTotal:{type:"number"},deposit:{type:"number"},category:{type:"string"}},required:["name","quantity","lineTotal","category"]}}},required:["items"]};
@@ -922,11 +925,13 @@ function openPurchase(){
     function reviewUI(){
       const store=h("input",{value:draft.store,placeholder:"Bolt (Lidl, Aldi, Spar…)",oninput:e=>draft.store=e.target.value}),
         date=h("input",{type:"date",value:draft.date,oninput:e=>draft.date=e.target.value}),rows=h("div"),e2=h("div",{class:"err"}),totIn=h("input",{type:"number",inputMode:"numeric",min:"0",step:"1",value:draft.receiptTotal||"",placeholder:"Végösszeg",style:"font-size:24px;font-weight:800",oninput:e=>{draft.receiptTotal=+e.target.value||0;upd()}}),total=h("div",{style:"margin:6px 0 10px"},h("div",{class:"sm mu",style:"margin-bottom:4px"},"Végösszeg (Ft) · ez kerül mentésre"),totIn);
-      const chk=h("div",{class:"sm",style:"margin:0 0 10px"}),dep=h("div",{class:"sm",style:"margin:0 0 10px"});
+      const chk=h("div",{class:"sm",style:"margin:0 0 10px"}),dep=h("div",{class:"sm",style:"margin:0 0 10px;white-space:pre-line"});
       const upd=()=>{const sum=draft.items.reduce((s,i)=>s+(+i.quantity||0)*(+i.unitPrice||0),0);
         const dsum=draft.items.reduce((a,i)=>a+(+i.deposit||0),0)||draft.deposit||0;dep.textContent=dsum>0?"♻️ Ebből betétdíj / visszaváltási díj összesen: "+huf(dsum)+" (benne van a részárakban és a végösszegben)":"";
-        const rt=draft.receiptTotal||0,diff=Math.round(sum-rt);
-        if(rt>0&&Math.abs(diff)<=1){chk.className="sm";chk.style.color="var(--ok)";chk.textContent="✓ A részárak összege egyezik a blokk végösszegével ("+huf(rt)+")"}
+        const rt=draft.receiptTotal||0,diff=Math.round(sum-rt),named=draft.items.filter(i=>String(i.name||"").trim()).length,nf=draft.items.filter(i=>NONFOOD.has(i.category)&&String(i.name||"").trim()).length;
+        if(nf)dep.textContent=(dep.textContent?dep.textContent+"\n":"")+"🛍️ "+nf+" nem élelmiszer tétel nem kerül a leltárba";
+        if(!named&&rt>0){chk.className="sm";chk.style.color="";chk.textContent="Csak a végösszeg ("+huf(rt)+") kerül mentésre, tételek nélkül."}
+        else if(rt>0&&Math.abs(diff)<=1){chk.className="sm";chk.style.color="var(--ok)";chk.textContent="✓ A részárak összege egyezik a blokk végösszegével ("+huf(rt)+")"}
         else if(rt>0){chk.className="err";chk.style.color="";chk.textContent="⚠ Valami nem stimmel: a blokk végösszege "+huf(rt)+", a tételeké "+huf(sum)+" (különbség: "+huf(Math.abs(diff))+"). Ellenőrizd a részárakat és a darabszámokat! Mentéskor a blokk végösszege ("+huf(rt)+") kerül a kiadásokba."}
         else{chk.className="err";chk.style.color="";chk.textContent="⚠ A blokk végösszegét nem sikerült kiolvasni. Írd be fent a blokkon álló végösszeget, különben a tételek összege ("+huf(sum)+") kerül mentésre."}};
       const drawRows=()=>{
@@ -945,7 +950,7 @@ function openPurchase(){
         h("div",{class:"pair"},h("button",{class:"btn ghost",onclick:()=>{st="pick";draft=null;draw()}},"Vissza"),
           h("button",{class:"btn",onclick:()=>{
             const items=draft.items.map(i=>({name:String(i.name).trim(),raw:i.raw||"",quantity:+i.quantity||1,unitPrice:+i.unitPrice||0,deposit:+i.deposit||0,category:i.category})).filter(i=>i.name);
-            if(!items.length){e2.textContent="Legalább egy tételt adj meg.";return}
+            if(!items.length&&!(+draft.receiptTotal>0)){e2.textContent="Adj meg legalább egy tételt, vagy írd be a végösszeget.";return}
             const sum=items.reduce((s,i)=>s+i.quantity*i.unitPrice,0),u={};
             const dep0=Math.round(items.reduce((a,i)=>a+i.deposit,0)||draft.deposit||0),fin=(+draft.receiptTotal||0)>0?+draft.receiptTotal:sum;
             u["tx/"+uid()]={profile:me,store:String(draft.store||"").trim()||"Ismeretlen bolt",date:draft.date||fmt(new Date()),items,total:fin,deposit:dep0,created:Date.now()};
@@ -957,7 +962,7 @@ function openPurchase(){
             const eg=items.filter(i=>i.category==="egyéb").map(i=>i.name);if(eg.length)logU(u,"egyeb",{names:eg.slice(0,15)});
             const fx=draft.items.filter(i=>i.edited&&i.raw&&String(i.name).trim()&&norm(i.raw)!==norm(i.name)).map(i=>[i.raw,String(i.name).trim()]);if(fx.length)logU(u,"name_fix",{pairs:fx.slice(0,15)});
             trimLog(u);
-            items.forEach(i=>Object.assign(u,setInv(i.name,"ok")));
+            items.filter(i=>!NONFOOD.has(i.category)).forEach(i=>Object.assign(u,setInv(i.name,"ok")));
             let gone=0;shop().forEach(s=>{if(items.some(i=>fz(i.name,s.name))){u["shop/"+s.id]=null;gone++}});
             multi(u);close();toast("Mentve · "+huf(fin)+(gone?" · "+gone+" tétel lekerült a listáról":""),"✅");confetti(18);buzz()}},"Mentés")));
     }
